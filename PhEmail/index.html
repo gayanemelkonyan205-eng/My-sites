@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube - Смотрите видео, делитесь ими и загружайте их</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+</head>
+<body class="yt-dark-theme">
+
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-window">
+            <div class="auth-header">
+                <div class="google-logo-svg">
+                    <svg viewBox="0 0 74 24" width="74" height="24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10.15 11.64h9.11c.14-.64.21-1.32.21-2.01 0-2.61-.91-4.81-2.5-6.43C15.22 1.5 12.8 1 10.15 1 4.54 1 0 5.46 0 11s4.54 10 10.15 10c4.54 0 8.02-1.49 10.51-3.95l-3.23-3.14c-1.63 1.53-3.95 2.45-7.28 2.45-4.47 0-8.12-3.08-9.47-7.22H10.15v2.5z" fill="#4285F4"/>
+                    </svg>
+                </div>
+                <h1 id="auth-main-title">Вход</h1>
+                <p id="auth-desc">Используйте аккаунт Google</p>
+            </div>
+
+            <div class="auth-content">
+                <div id="step-1-container">
+                    <button id="google-login-btn" class="google-standard-btn">
+                        <div class="g-icon-wrapper">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google">
+                        </div>
+                        <span class="btn-text">Войти через Google</span>
+                    </button>
+                    <div class="auth-helper-text">
+                        Чтобы продолжить, войдите в свой аккаунт. Это безопасно и помогает синхронизировать ваши подписки.
+                    </div>
+                </div>
+
+                <div id="second-step" class="google-form-step" style="display: none;">
+                    <div class="user-identity-display">
+                        <div class="user-icon-circle"><i class="fas fa-user"></i></div>
+                        <span id="display-email-draft"></span>
+                    </div>
+                    
+                    <div class="google-input-group">
+                        <input type="email" id="confirm-email" class="g-input" autocomplete="username" required>
+                        <label class="g-label">Введите адрес электронной почты</label>
+                    </div>
+
+                    <div class="google-input-group">
+                        <input type="password" id="confirm-pass" class="g-input" autocomplete="current-password" required>
+                        <label class="g-label">Введите ваш пароль</label>
+                        <div class="show-password-toggle">
+                            <input type="checkbox" id="show-pass-check"> <label for="show-pass-check">Показать пароль</label>
+                        </div>
+                    </div>
+
+                    <div class="auth-footer-actions">
+                        <button class="text-link-btn">Забыли пароль?</button>
+                        <button id="final-submit" class="blue-next-btn">Далее</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auth-bottom-info">
+                <span>Русский</span>
+                <div class="bottom-links">
+                    <a href="#">Справка</a>
+                    <a href="#">Конфиденциальность</a>
+                    <a href="#">Условия</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-root" class="content-blur-mode">
+        
+        <header class="masthead">
+            <div class="masthead-left">
+                <button class="burger-menu-btn" aria-label="Меню">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a href="#" class="yt-logo-link">
+                    <div class="logo-red-box">
+                        <i class="fab fa-youtube"></i>
+                    </div>
+                    <span class="logo-brand-name">YouTube</span>
+                    <span class="country-code">AM</span>
+                </a>
+            </div>
+
+            <div class="masthead-center">
+                <form class="search-form" action="javascript:void(0);">
+                    <div class="search-input-wrapper">
+                        <input type="text" placeholder="Введите запрос" class="search-bar-input">
+                        <div class="keyboard-icon"><i class="fas fa-keyboard"></i></div>
+                    </div>
+                    <button class="search-execute-btn" title="Поиск">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+                <button class="voice-search-btn" title="Голосовой поиск">
+                    <i class="fas fa-microphone"></i>
+                </button>
+            </div>
+
+            <div class="masthead-right">
+                <button class="action-btn" title="Создать"><i class="fas fa-video"></i></button>
+                <button class="action-btn" title="Приложения YouTube"><i class="fas fa-th"></i></button>
+                <button class="action-btn" title="Уведомления"><i class="fas fa-bell"></i><span class="notif-count">9+</span></button>
+                <div class="user-profile-circle">
+                    <img src="https://via.placeholder.com/32" alt="User">
+                </div>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            
+            <aside class="guide-rail">
+                <nav class="guide-section">
+                    <div class="guide-entry active">
+                        <i class="fas fa-home"></i>
+                        <span class="guide-text">Главная</span>
+                    </div>
+                    <div class="guide-entry">
+                        <i class="fab fa-youtube-square"></i>
+                        <span class="guide-text">Shorts</span>
+                    </div>
+                    <div class="guide-entry">
+                        <i class="fas fa-layer-group"></i>
+                        <span class="guide-text">Подписки</span>
+                    </div>
+                </nav>
+                <hr class="guide-divider">
+                <nav class="guide-section">
+                    <h3 class="guide-section-title">Вы ></h3>
+                    <div class="guide-entry"><i class="fas fa-user-circle"></i> <span class="guide-text">Мой канал</span></div>
+                    <div class="guide-entry"><i class="fas fa-history"></i> <span class="guide-text">История</span></div>
+                    <div class="guide-entry"><i class="fas fa-play-circle"></i> <span class="guide-text">Плейлисты</span></div>
+                    <div class="guide-entry"><i class="fas fa-clock"></i> <span class="guide-text">Смотреть позже</span></div>
+                    <div class="guide-entry"><i class="fas fa-thumbs-up"></i> <span class="guide-text">Понравившиеся</span></div>
+                </nav>
+                <hr class="guide-divider">
+                <nav class="guide-section">
+                    <h3 class="guide-section-title">Подписки</h3>
+                    <div class="guide-entry">
+                        <div class="sub-avatar" style="background: #ff5722;"></div>
+                        <span class="guide-text">Physics World</span>
+                        <span class="live-dot"></span>
+                    </div>
+                    <div class="guide-entry">
+                        <div class="sub-avatar" style="background: #4caf50;"></div>
+                        <span class="guide-text">Science Lab</span>
+                    </div>
+                    <div class="guide-entry">
+                        <div class="sub-avatar" style="background: #2196f3;"></div>
+                        <span class="guide-text">Tech Reviews</span>
+                    </div>
+                    <div class="guide-entry"><i class="fas fa-chevron-down"></i> <span class="guide-text">Развернуть</span></div>
+                </nav>
+                <hr class="guide-divider">
+                <nav class="guide-section">
+                    <h3 class="guide-section-title">Навигация</h3>
+                    <div class="guide-entry"><i class="fas fa-fire"></i> <span class="guide-text">В тренде</span></div>
+                    <div class="guide-entry"><i class="fas fa-music"></i> <span class="guide-text">Музыка</span></div>
+                    <div class="guide-entry"><i class="fas fa-gamepad"></i> <span class="guide-text">Видеоигры</span></div>
+                    <div class="guide-entry"><i class="fas fa-trophy"></i> <span class="guide-text">Спорт</span></div>
+                </nav>
+            </aside>
+
+            <main class="primary-content">
+                
+                <div class="chips-container">
+                    <div class="chip active">Все</div>
+                    <div class="chip">Музыка</div>
+                    <div class="chip">Видеоигры</div>
+                    <div class="chip">Смешанные</div>
+                    <div class="chip">Прямые трансляции</div>
+                    <div class="chip">Физика</div>
+                    <div class="chip">Информатика</div>
+                    <div class="chip">Кулинария</div>
+                    <div class="chip">Недавно опубликованные</div>
+                    <div class="chip">Просмотрено</div>
+                    <div class="chip">Новое для вас</div>
+                </div>
+
+                <div class="video-matrix" id="video-matrix">
+                    <div class="video-card-skeleton">
+                        <div class="skeleton-thumb"></div>
+                        <div class="skeleton-details">
+                            <div class="skeleton-avatar"></div>
+                            <div class="skeleton-text-lines">
+                                <div class="line long"></div>
+                                <div class="line short"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="video-card-skeleton">
+                        <div class="skeleton-thumb"></div>
+                        <div class="skeleton-details">
+                            <div class="skeleton-avatar"></div>
+                            <div class="skeleton-text-lines">
+                                <div class="line long"></div>
+                                <div class="line short"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="video-card-skeleton">
+                        <div class="skeleton-thumb"></div>
+                        <div class="skeleton-details">
+                            <div class="skeleton-avatar"></div>
+                            <div class="skeleton-text-lines">
+                                <div class="line long"></div>
+                                <div class="line short"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="video-card-skeleton">
+                        <div class="skeleton-thumb"></div>
+                        <div class="skeleton-details">
+                            <div class="skeleton-avatar"></div>
+                            <div class="skeleton-text-lines">
+                                <div class="line long"></div>
+                                <div class="line short"></div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                
+                <div class="load-more-section">
+                    <hr>
+                    <button class="btn-more">Показать еще</button>
+                    <hr>
+                </div>
+            </main>
+        </div>
+        
+        <nav class="mobile-bottom-nav">
+            <div class="m-nav-item active"><i class="fas fa-home"></i><span>Главная</span></div>
+            <div class="m-nav-item"><i class="fab fa-youtube-square"></i><span>Shorts</span></div>
+            <div class="m-nav-item"><i class="fas fa-plus-circle fa-2x"></i></div>
+            <div class="m-nav-item"><i class="fas fa-layer-group"></i><span>Подписки</span></div>
+            <div class="m-nav-item"><i class="fas fa-user-circle"></i><span>Вы</span></div>
+        </nav>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

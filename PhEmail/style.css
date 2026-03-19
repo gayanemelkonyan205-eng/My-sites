@@ -1,0 +1,363 @@
+/* VideoTube Premium Stylesheet v2.1
+    Design: Dark Mode YouTube + Google Material 3 
+*/
+
+:root {
+    --yt-main-bg: #0f0f0f;
+    --yt-sidebar-bg: #0f0f0f;
+    --yt-header-bg: #0f0f0f;
+    --yt-text-primary: #ffffff;
+    --yt-text-secondary: #aaaaaa;
+    --yt-red: #ff0000;
+    --yt-hover: #272727;
+    --yt-border: #3f3f3f;
+    --google-blue: #1a73e8;
+    --google-blue-hover: #1b66c9;
+    --glass-blur: blur(20px);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', Arial, sans-serif;
+    background-color: var(--yt-main-bg);
+    color: var(--yt-text-primary);
+    overflow: hidden; /* Запрет скролла до авторизации */
+    -webkit-font-smoothing: antialiased;
+}
+
+/* --- ЭКРАН БЛОКИРОВКИ (AUTH) --- */
+
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.5s ease;
+}
+
+.auth-window {
+    background: #ffffff;
+    width: 450px;
+    min-height: 500px;
+    padding: 48px 40px 36px;
+    border-radius: 8px;
+    color: #202124;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 24px 38px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.google-logo-svg {
+    margin-bottom: 10px;
+}
+
+.auth-window h1 {
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 8px;
+}
+
+.auth-window p {
+    font-size: 16px;
+    margin-bottom: 40px;
+}
+
+/* Кнопка входа Google */
+.google-standard-btn {
+    width: 100%;
+    height: 40px;
+    border: 1px solid #dadce0;
+    background: #fff;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 20px;
+}
+
+.google-standard-btn:hover {
+    background: #f7f8f8;
+    border-color: #d2e3fc;
+}
+
+.g-icon-wrapper {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
+}
+
+.btn-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #3c4043;
+}
+
+.auth-helper-text {
+    font-size: 13px;
+    color: #5f6368;
+    line-height: 1.6;
+    text-align: left;
+}
+
+/* Форма второго шага */
+.google-form-step {
+    text-align: left;
+    animation: fadeIn 0.4s ease;
+}
+
+.user-identity-display {
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border: 1px solid #dadce0;
+    border-radius: 20px;
+    width: fit-content;
+    margin: 0 auto 30px;
+    font-size: 14px;
+}
+
+.user-icon-circle {
+    width: 20px;
+    height: 20px;
+    background: #5f6368;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 8px;
+    font-size: 10px;
+}
+
+.google-input-group {
+    position: relative;
+    margin-bottom: 25px;
+}
+
+.g-input {
+    width: 100%;
+    padding: 13px 15px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    font-size: 16px;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.g-input:focus {
+    border: 2px solid var(--google-blue);
+    padding: 12px 14px;
+}
+
+.g-label {
+    position: absolute;
+    left: 15px;
+    top: 13px;
+    color: #5f6368;
+    pointer-events: none;
+    transition: 0.2s ease all;
+}
+
+.g-input:focus ~ .g-label,
+.g-input:valid ~ .g-label {
+    top: -10px;
+    left: 10px;
+    font-size: 12px;
+    background: white;
+    padding: 0 4px;
+    color: var(--google-blue);
+}
+
+.blue-next-btn {
+    background: var(--google-blue);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    float: right;
+}
+
+.blue-next-btn:hover {
+    background: var(--google-blue-hover);
+    box-shadow: 0 1px 2px rgba(60,64,67,0.3);
+}
+
+/* --- ГЛАВНЫЙ ИНТЕРФЕЙС --- */
+
+.content-blur-mode {
+    filter: blur(15px);
+    pointer-events: none;
+    transition: filter 0.8s ease;
+}
+
+/* Шапка */
+.masthead {
+    height: 56px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background: var(--yt-header-bg);
+    z-index: 1000;
+}
+
+.yt-logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: white;
+    margin-left: 16px;
+}
+
+.logo-red-box {
+    color: var(--yt-red);
+    font-size: 28px;
+    margin-right: 4px;
+}
+
+.logo-brand-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: -1px;
+}
+
+/* Поиск */
+.masthead-center {
+    display: flex;
+    align-items: center;
+    width: 40%;
+    max-width: 720px;
+}
+
+.search-form {
+    display: flex;
+    width: 100%;
+}
+
+.search-input-wrapper {
+    background: #121212;
+    border: 1px solid var(--yt-border);
+    border-radius: 40px 0 0 40px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-left: 32px;
+}
+
+.search-bar-input {
+    background: transparent;
+    border: none;
+    color: white;
+    height: 40px;
+    width: 100%;
+    font-size: 16px;
+    outline: none;
+}
+
+.search-execute-btn {
+    background: #222;
+    border: 1px solid var(--yt-border);
+    border-left: none;
+    border-radius: 0 40px 40px 0;
+    width: 64px;
+    height: 40px;
+    color: white;
+    cursor: pointer;
+}
+
+/* Сетка видео */
+.main-layout {
+    display: flex;
+    margin-top: 56px;
+}
+
+.guide-rail {
+    width: 240px;
+    height: calc(100vh - 56px);
+    position: fixed;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.guide-entry {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.guide-entry:hover { background: var(--yt-hover); }
+.guide-entry i { margin-right: 24px; font-size: 18px; }
+
+.primary-content {
+    margin-left: 240px;
+    width: 100%;
+    padding: 24px;
+}
+
+.video-matrix {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+/* Скелетоны анимация */
+.video-card-skeleton {
+    margin-bottom: 20px;
+}
+
+.skeleton-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #222;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-thumb::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .guide-rail { display: none; }
+    .primary-content { margin-left: 0; }
+    .masthead-center { display: none; }
+}
