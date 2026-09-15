@@ -8,7 +8,10 @@ for (const path of ['app', 'src', 'public', 'next.config.ts', 'next.config.mjs',
   rmSync(join(process.cwd(), path), { recursive: true, force: true });
 }
 
-cpSync(join(source, 'src'), join(process.cwd(), 'src'), { recursive: true });
+cpSync(join(source, 'src'), join(process.cwd(), 'src'), {
+  recursive: true,
+  filter: (src) => !/\.(test|spec)\.[cm]?[jt]sx?$/.test(src)
+});
 
 for (const file of ['next.config.ts', 'next-env.d.ts', 'postcss.config.mjs', 'tsconfig.json']) {
   const from = join(source, file);
@@ -20,4 +23,4 @@ if (existsSync(sourcePublic)) {
   cpSync(sourcePublic, join(process.cwd(), 'public'), { recursive: true });
 }
 
-console.log('Prepared strict full class-portal source inside configured Vercel root.');
+console.log('Prepared strict full class-portal source inside configured Vercel root without test-only files.');
