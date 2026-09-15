@@ -1,28 +1,13 @@
-import { cpSync, copyFileSync, existsSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-const source = resolve(process.cwd(), '..', 'class-portal');
-if (!existsSync(source)) throw new Error('class-portal source directory is missing');
-
-for (const path of ['src', 'next-env.d.ts', 'postcss.config.mjs', 'tsconfig.json']) {
-  const from = join(source, path);
-  const to = join(process.cwd(), path);
-  if (path === 'src') {
-    rmSync(to, { recursive: true, force: true });
-    cpSync(from, to, { recursive: true });
-  } else {
-    copyFileSync(from, to);
-  }
-}
-
-writeFileSync(join(process.cwd(), 'next.config.mjs'), `export default {
-  poweredByHeader: false,
-  env: {
-    NEXT_PUBLIC_SUPABASE_URL: 'https://yknzcvooglrsvyidestj.supabase.co',
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ',
-    NEXT_PUBLIC_APP_NAME: 'Դասարան',
-    NEXT_PUBLIC_DEMO_MODE: 'false'
-  }
-};\n`);
-
-console.log('Prepared class-portal source inside configured Vercel root.');
+const src = join(process.cwd(), 'src');
+rmSync(src, { recursive: true, force: true });
+mkdirSync(join(src, 'app'), { recursive: true });
+writeFileSync(join(src, 'app', 'layout.tsx'), `export default function RootLayout({ children }: { children: React.ReactNode }) { return <html lang="hy"><body>{children}</body></html>; }\n`);
+writeFileSync(join(src, 'app', 'page.tsx'), `export default function Page() { return <main>Class Portal build smoke test</main>; }\n`);
+writeFileSync(join(src, 'app', 'globals.css'), `body{font-family:system-ui,sans-serif;margin:0;padding:2rem}\n`);
+writeFileSync(join(process.cwd(), 'tsconfig.json'), JSON.stringify({compilerOptions:{target:'ES2022',lib:['dom','dom.iterable','es2023'],strict:true,noEmit:true,esModuleInterop:true,module:'esnext',moduleResolution:'bundler',isolatedModules:true,jsx:'react-jsx',plugins:[{name:'next'}]},include:['next-env.d.ts','**/*.ts','**/*.tsx','.next/types/**/*.ts'],exclude:['node_modules']}, null, 2));
+writeFileSync(join(process.cwd(), 'next-env.d.ts'), `/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n`);
+writeFileSync(join(process.cwd(), 'next.config.mjs'), `export default { poweredByHeader: false };\n`);
+console.log('Prepared minimal Next.js smoke app.');
