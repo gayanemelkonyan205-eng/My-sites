@@ -1,0 +1,33 @@
+name: Unpack class portal
+
+on:
+  push:
+    branches: [class-portal-deploy]
+    paths:
+      - class-portal-source.zip
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: class-portal-deploy
+      - name: Unpack portal source
+        run: |
+          rm -rf class-portal
+          mkdir -p class-portal
+          unzip -q class-portal-source.zip -d class-portal
+          rm class-portal-source.zip
+      - name: Commit unpacked portal
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A class-portal class-portal-source.zip
+          if ! git diff --cached --quiet; then
+            git commit -m "Deploy class portal source"
+            git push origin class-portal-deploy
+          fi
