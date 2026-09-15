@@ -1,0 +1,44 @@
+name: Class Portal CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'class-portal/**'
+      - '.github/workflows/class-portal-ci.yml'
+  push:
+    branches: [class-portal-deploy]
+    paths:
+      - 'class-portal/**'
+      - '.github/workflows/class-portal-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: class-portal
+    env:
+      NEXT_PUBLIC_APP_URL: https://class-portal-thovhannisyan184-9716.vercel.app
+      NEXT_PUBLIC_APP_NAME: Դասարան
+      NEXT_PUBLIC_DEMO_MODE: 'false'
+      NEXT_PUBLIC_SUPABASE_URL: https://yknzcvooglrsvyidestj.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Production build
+        run: npm run build
