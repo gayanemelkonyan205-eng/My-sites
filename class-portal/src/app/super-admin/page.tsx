@@ -1,23 +1,22 @@
 import { Database, FileClock, Settings2, ShieldCheck, UsersRound } from "lucide-react";
 import { PageHeading } from "@/components/page-heading";
 import { requireRole } from "@/lib/auth/viewer";
-import { rotateInviteCodeAction } from "./actions";
-
-const cards = [
-  ["Օգտատերեր", "Դերեր, արգելափակում, ակտիվություն", UsersRound],
-  ["Database Manager", "Թույլատրված application տվյալների անվտանգ CRUD", Database],
-  ["Site Settings", "Անվանում, դասարան, բրենդ, feature controls", Settings2],
-  ["Audit Log", "Կարևոր ադմինիստրատիվ գործողությունների պատմություն", FileClock],
-  ["Անվտանգություն", "Հիմնական կարգավիճակ և վերահսկման կետեր", ShieldCheck]
-] as const;
-
+import { createClient } from "@/lib/supabase/server";
+import { rotateInviteCodeAction, setUserActiveAction, setUserRoleAction } from "./actions";
+const cards = [["Օգտատերեր", "Դերեր, արգելափակում, ակտիվություն", UsersRound], ["Database Manager", "Թույլատրված application տվյալների անվտանգ CRUD", Database], ["Site Settings", "Անվանում, դասարան, բրենդ, feature controls", Settings2], ["Audit Log", "Կարևոր ադմինիստրատիվ գործողությունների պատմություն", FileClock], ["Անվտանգություն", "Հիմնական կարգավիճակ և վերահսկման կետեր", ShieldCheck]] as const;
 export default async function SuperAdminPage({ searchParams }: { searchParams: Promise<{ error?: string; message?: string }> }) {
   await requireRole("SUPER_ADMIN");
   const params = await searchParams;
+  const supabase = await createClient();
+  const [{ data: users }, { data: audit }] = await Promise.all([
+    supabase.from("profiles").select("id, first_name, last_name, username, role, is_active, created_at").order("created_at", { ascending: true }).limit(100),
+    supabase.from("audit_logs").select("id, action, entity_type, entity_id, created_at").order("created_at", { ascending: false }).limit(12)
+  ]);
   return <><PageHeading title="Super Admin" description="Համակարգի առավելագույն application-level կառավարում՝ առանց browser SQL console-ի և առանց գաղտնիքների արտահոսքի։" />
-    {params.message === "invite_rotated" ? <p className="mb-5 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-[var(--success)]">Հրավերի կոդը փոխվել է։ Հին կոդն այլևս չի աշխատում։</p> : null}
-    {params.error ? <p className="mb-5 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-[var(--danger)]">Գործողությունը չհաջողվեց։ Ստուգեք նոր կոդը և հաստատումը։</p> : null}
+    {params.message ? <p className="mb-5 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-[var(--success)]">{params.message === "invite_rotated" ? "Հրավերի կոդը փոխվել է։ Հին կոդն այլևս չի աշխատում։" : params.message === "user_updated" ? "Օգտատիրոջ կարգավորումը թարմացվել է։" : "SUPER_ADMIN-ը ակտիվացված է։"}</p> : null}
+    {params.error ? <p className="mb-5 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-[var(--danger)]">Գործողությունը չհաջողվեց։ Անվտանգության կանոնը մերժել է փոփոխությունը կամ տվյալները սխալ են։</p> : null}
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{cards.map(([title, text, Icon]) => <section key={title} className="surface p-5"><span className="grid size-11 place-items-center rounded-2xl bg-[var(--accent)]/10 text-[var(--accent)]"><Icon className="size-5" /></span><h2 className="mt-4 text-lg font-bold">{title}</h2><p className="mt-2 text-sm leading-6 muted">{text}</p></section>)}</div>
-    <section className="surface mt-5 max-w-2xl p-5 sm:p-6"><h2 className="text-lg font-bold">Փոխել դասարանի հրավերի կոդը</h2><p className="mt-2 text-sm leading-6 muted">Պահվում է միայն SHA-256 hash-ը։ Նոր կոդը հիշեք կամ պահեք անվտանգ վայրում․ այստեղ այն կրկին չի ցուցադրվի։</p><form action={rotateInviteCodeAction} className="mt-5 grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium sm:col-span-2">Նոր հրավերի կոդ<input name="inviteCode" minLength={8} required autoComplete="off" className="auth-input mt-2" /></label><label className="text-sm font-medium sm:col-span-2">Վտանգավոր գործողության հաստատում<input name="confirmation" required placeholder="Գրեք՝ ՓՈԽԵԼ" className="auth-input mt-2" /></label><button type="submit" className="rounded-xl bg-[var(--danger)] px-4 py-3 font-semibold text-white sm:col-span-2">Փոխել կոդը</button></form></section>
+    <section className="surface mt-5 p-5 sm:p-6"><h2 className="text-lg font-bold">Օգտատերերի կառավարում</h2><div className="mt-5 grid gap-3">{users?.length ? users.map((user) => <article key={user.id} className="rounded-2xl border border-[var(--border)] p-4"><div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="font-semibold">{user.first_name} {user.last_name}</p><p className="mt-1 text-sm muted">@{user.username} · {user.role} · {user.is_active ? "ակտիվ" : "արգելափակված"}</p></div><div className="flex flex-wrap gap-2"><form action={setUserRoleAction} className="flex gap-2"><input type="hidden" name="userId" value={user.id} /><select name="role" defaultValue={user.role} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"><option value="STUDENT">STUDENT</option><option value="ADMIN">ADMIN</option><option value="SUPER_ADMIN">SUPER_ADMIN</option></select><button className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">Պահել դերը</button></form><form action={setUserActiveAction}><input type="hidden" name="userId" value={user.id} /><input type="hidden" name="active" value={user.is_active ? "false" : "true"} /><button className={`rounded-xl px-3 py-2 text-sm font-semibold ${user.is_active ? "bg-red-500/10 text-[var(--danger)]" : "bg-emerald-500/10 text-[var(--success)]"}`}>{user.is_active ? "Արգելափակել" : "Ակտիվացնել"}</button></form></div></div></article>) : <p className="text-sm muted">Օգտատերեր դեռ չկան։</p>}</div></section>
+    <div className="mt-5 grid gap-5 xl:grid-cols-2"><section className="surface p-5 sm:p-6"><h2 className="text-lg font-bold">Փոխել դասարանի հրավերի կոդը</h2><p className="mt-2 text-sm leading-6 muted">Կոդի բաց տեքստը չի պահվում։ Supabase-ում մնում է միայն ուժեղ bcrypt hash-ը։</p><form action={rotateInviteCodeAction} className="mt-5 grid gap-4"><label className="text-sm font-medium">Նոր հրավերի կոդ<input name="inviteCode" minLength={8} required autoComplete="off" className="auth-input mt-2" /></label><label className="text-sm font-medium">Հաստատում<input name="confirmation" required placeholder="Գրեք՝ ՓՈԽԵԼ" className="auth-input mt-2" /></label><button type="submit" className="rounded-xl bg-[var(--danger)] px-4 py-3 font-semibold text-white">Փոխել կոդը</button></form></section><section className="surface p-5 sm:p-6"><h2 className="text-lg font-bold">Վերջին Audit Log-ը</h2><div className="mt-4 space-y-3">{audit?.length ? audit.map((item) => <div key={item.id} className="rounded-xl border border-[var(--border)] p-3"><p className="text-sm font-semibold">{item.action}</p><p className="mt-1 text-xs muted">{item.entity_type}{item.entity_id ? ` · ${item.entity_id}` : ""} · {new Date(item.created_at).toLocaleString("hy-AM")}</p></div>) : <p className="text-sm muted">Գրառումներ դեռ չկան։</p>}</div></section></div>
   </>;
 }
