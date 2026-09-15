@@ -1,17 +1,10 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { demoViewer } from "@/lib/demo-data";
 import type { Role, ViewerProfile } from "@/lib/types";
 import { hasMinimumRole } from "@/lib/auth/authorization";
 import { createClient } from "@/lib/supabase/server";
 
-function demoEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
-}
-
 export async function getViewer(): Promise<ViewerProfile | null> {
-  if (demoEnabled()) return demoViewer;
-
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) return null;
