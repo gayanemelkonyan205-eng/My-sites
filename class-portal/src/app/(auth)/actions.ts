@@ -6,16 +6,19 @@ import { mapSignupError } from "@/lib/auth/error-codes";
 import { createClient } from "@/lib/supabase/server";
 
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
-const registerSchema = z.object({
+const profileFields = {
   firstName: z.string().trim().min(2).max(60),
   lastName: z.string().trim().min(2).max(60),
   username: z.string().trim().min(3).max(32).regex(/^[a-zA-Z0-9_.-]+$/),
+  inviteCode: z.string().min(8).max(100)
+};
+const registerSchema = z.object({
+  ...profileFields,
   email: z.string().email(),
   password: z.string().min(10).max(128),
-  confirmPassword: z.string(),
-  inviteCode: z.string().min(8).max(100)
+  confirmPassword: z.string()
 }).refine((value) => value.password === value.confirmPassword, { path: ["confirmPassword"], message: "password_mismatch" });
-const completeProfileSchema = registerSchema.pick({ firstName: true, lastName: true, username: true, inviteCode: true });
+const completeProfileSchema = z.object(profileFields);
 const passwordSchema = z.object({ password: z.string().min(10).max(128), confirmPassword: z.string() }).refine((value) => value.password === value.confirmPassword, { path: ["confirmPassword"], message: "password_mismatch" });
 
 function appUrl(): string { return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"; }
