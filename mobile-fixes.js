@@ -26,6 +26,7 @@ function addStyles() {
 
 function ensureMobileNavigation() {
   const mobile = document.querySelector('.mobile');
+  if (mobile?.dataset.simpleNav === '1') return;
   const desktopButtons = [...document.querySelectorAll('.sidebar .nav [data-nav]')];
   if (!mobile || !desktopButtons.length) return;
 
