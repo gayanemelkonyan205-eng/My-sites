@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f5f5f7">
+  <meta name="theme-color" content="#000000">
   <meta name="color-scheme" content="light dark">
   <title>Դասարան — Class Portal</title>
   <link rel="stylesheet" href="./portal.css?v=4">
@@ -16,18 +16,10 @@
 <body>
   <main id="app"><div class="boot"><div class="logo">Դ</div><div><b>Դասարան</b><small>Բեռնվում է…</small></div></div></main>
   <div id="toast"></div>
-  <script type="module" src="./telemetry.js?v=1"></script>
-  <script type="module" src="./appearance-runtime.js?v=1"></script>
-  <script type="module" src="./feature-runtime.js?v=1"></script>
-  <script type="module" src="./portal.js?v=4"></script>
-  <script type="module" src="./copy-polish.js?v=1"></script>
-  <script type="module" src="./mobile-fixes.js?v=3"></script>
-  <script type="module" src="./liquid-glass-v2.js?v=2"></script>
-  <script type="module" src="./chat-reliable.js?v=2"></script>
-  <script type="module" src="./chat-polish.js?v=1"></script>
-  <script type="module" src="./control-center.js?v=1"></script>
-  <script type="module" src="./control-center-extensions.js?v=1"></script>
-  <script type="module" src="./chat-admin-fix.js?v=1"></script>
-  <script type="module" src="./simple-nav.js?v=2"></script>
+
+  <!-- Critical path: only the main portal may touch Auth during boot. -->
+  <script type="module" src="./portal.js?v=5"></script>
+  <!-- Everything else is loaded after the portal has rendered. -->
+  <script type="module" src="./runtime-loader.js?v=1"></script>
 </body>
 </html>
