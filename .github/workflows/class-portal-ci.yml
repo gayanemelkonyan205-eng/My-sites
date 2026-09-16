@@ -1,6 +1,11 @@
 name: Class Portal CI
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'class-portal/**'
+      - '.github/workflows/class-portal-ci.yml'
   push:
     branches: [class-portal-deploy]
     paths:
