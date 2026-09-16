@@ -11,11 +11,14 @@ function addStyles() {
   const style = document.createElement('style');
   style.id = 'mobile-fixes-style';
   style.textContent = `
+    .admin-shortcut{display:none}
     @media(max-width:900px){
       .mobile{display:flex!important;overflow-x:auto;overflow-y:hidden;gap:4px;scrollbar-width:none;justify-content:flex-start}
       .mobile::-webkit-scrollbar{display:none}
       .mobile button{flex:0 0 76px;min-width:76px;white-space:nowrap}
       .main{padding-bottom:96px!important}
+      .admin-shortcut{display:inline-flex!important;align-items:center;gap:5px;padding:8px 10px;font-size:.78rem}
+      .top .actions{flex-wrap:wrap;justify-content:flex-end}
     }
   `;
   document.head.append(style);
@@ -32,13 +35,46 @@ function ensureMobileNavigation() {
     if (!key || existing.has(key)) continue;
     const button = document.createElement('button');
     button.dataset.nav = key;
-    button.innerHTML = source.innerHTML.replace('Super Admin', 'Super').replace('Հայտարարություններ', 'Հայտ.').replace('Դասընկերներ', 'Դասընկ.').replace('Ծանուցումներ', 'Ծանուց.');
+    button.innerHTML = source.innerHTML
+      .replace('Super Admin', 'Super')
+      .replace('Հայտարարություններ', 'Հայտ.')
+      .replace('Դասընկերներ', 'Դասընկ.')
+      .replace('Ծանուցումներ', 'Ծանուց.');
     button.addEventListener('click', () => {
-      const current = document.querySelector(`.sidebar .nav [data-nav="${CSS.escape(key)}"]`);
-      current?.click();
+      document.querySelector(`.sidebar .nav [data-nav="${CSS.escape(key)}"]`)?.click();
     });
     mobile.append(button);
   }
+}
+
+function ensureAdminShortcuts() {
+  const actions = document.querySelector('.top .actions');
+  if (!actions) return;
+
+  const add = (key, label) => {
+    const source = document.querySelector(`.sidebar .nav [data-nav="${key}"]`);
+    const id = `mobile-${key}-shortcut`;
+    if (!source || document.getElementById(id)) return;
+    const button = document.createElement('button');
+    button.id = id;
+    button.className = 'btn admin-shortcut';
+    button.type = 'button';
+    button.textContent = label;
+    button.onclick = () => document.querySelector(`.sidebar .nav [data-nav="${key}"]`)?.click();
+    actions.prepend(button);
+  };
+
+  add('superadmin', '◆ Super');
+  add('admin', '⚙ Admin');
+}
+
+function patchUsernameInputs() {
+  document.querySelectorAll('input[name="username"]').forEach((input) => {
+    input.removeAttribute('pattern');
+    input.maxLength = 32;
+    input.minLength = 3;
+    input.title = '3–32 символа, без пробелов';
+  });
 }
 
 async function patchChatForm() {
@@ -46,7 +82,6 @@ async function patchChatForm() {
   if (!form || form.dataset.robustChat === '1') return;
   form.dataset.robustChat = '1';
 
-  // Replace the original optimistic-Realtime-only submit handler with a robust one.
   form.onsubmit = null;
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -80,9 +115,7 @@ async function patchChatForm() {
     }
 
     input.value = '';
-    // Force a fresh message query; Realtime remains enabled as an additional fast path.
-    const chatNav = document.querySelector('.sidebar .nav [data-nav="chat"]');
-    chatNav?.click();
+    document.querySelector('.sidebar .nav [data-nav="chat"]')?.click();
     showFixToast('Сообщение отправлено');
   }, true);
 }
@@ -111,6 +144,8 @@ function markSuperAdminAccess() {
 function applyFixes() {
   addStyles();
   ensureMobileNavigation();
+  ensureAdminShortcuts();
+  patchUsernameInputs();
   patchChatForm();
   markSuperAdminAccess();
 }
