@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <meta name="color-scheme" content="light dark">
-  <title>Դասարան — Class Portal</title>
+  <title>Դասարան — 9Ա</title>
   <link rel="stylesheet" href="./portal.css?v=4">
   <link rel="stylesheet" href="./liquid-glass-v2.css?v=2">
   <link rel="stylesheet" href="./control-center.css?v=1">
@@ -14,12 +14,9 @@
   <link rel="stylesheet" href="./simple-nav.css?v=1">
 </head>
 <body>
-  <main id="app"><div class="boot"><div class="logo">Դ</div><div><b>Դասարան</b><small>Բեռնվում է…</small></div></div></main>
+  <main id="app"><div class="boot"><div class="logo">Դ</div><div><b>9Ա դասարան</b><small>Բեռնվում է…</small></div></div></main>
   <div id="toast"></div>
-
-  <!-- Critical path: only the main portal may touch Auth during boot. -->
   <script type="module" src="./portal.js?v=5"></script>
-  <!-- Everything else is loaded after the portal has rendered. -->
-  <script type="module" src="./runtime-loader.js?v=1"></script>
+  <script type="module" src="./runtime-loader.js?v=2"></script>
 </body>
 </html>
