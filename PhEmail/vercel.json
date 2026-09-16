@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm install --no-audit --no-fund",
+  "buildCommand": "npm run build",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://yknzcvooglrsvyidestj.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ",
+    "NEXT_PUBLIC_APP_NAME": "Դասարան",
+    "NEXT_PUBLIC_DEMO_MODE": "false"
+  }
+}
