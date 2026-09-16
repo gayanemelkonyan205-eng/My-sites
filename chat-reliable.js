@@ -84,7 +84,8 @@ function renderRows(rows) {
   if (!box) return;
   const html = (rows || []).map((message) => {
     const mine = message.sender_id === viewerId;
-    const who = `${message.sender?.first_name || ''} ${message.sender?.last_name || ''}`.trim();
+    const senderName = `${message.sender?.first_name || ''} ${message.sender?.last_name || ''}`.trim();
+    const who = mine ? 'Դուք' : (senderName || 'Մասնակից');
     return `<div class="msg ${mine ? 'mine' : ''}" data-message-id="${escapeHtml(message.id)}">
       <div class="who">${escapeHtml(who)}</div>
       ${escapeHtml(message.body || '').replace(/\n/g, '<br>')}
@@ -95,12 +96,37 @@ function renderRows(rows) {
   box.scrollTop = box.scrollHeight;
 }
 
+async function attachSenders(messages) {
+  const ids = [...new Set((messages || []).map((message) => message.sender_id).filter(Boolean))];
+  if (!ids.length) return messages || [];
+
+  const { data: profiles, error } = await sb
+    .from('profiles')
+    .select('id,first_name,last_name')
+    .in('id', ids);
+
+  if (error) {
+    console.warn('Chat sender profiles unavailable:', error.message);
+    return messages || [];
+  }
+
+  const byId = new Map((profiles || []).map((profile) => [profile.id, profile]));
+  return (messages || []).map((message) => ({
+    ...message,
+    sender: message.sender_id ? (byId.get(message.sender_id) || null) : null
+  }));
+}
+
 async function loadMessages(conversationId = currentConversationId) {
   if (!conversationId || !getMessagesBox()) return;
   await ensureViewer();
-  const { data, error } = await sb
+
+  // Do not embed profiles in this request. PostgREST can keep stale relationship
+  // metadata after schema changes and report an ambiguous relationship. Loading
+  // messages and sender profiles separately is explicit and resilient.
+  const { data: messages, error } = await sb
     .from('messages')
-    .select('id,conversation_id,sender_id,body,created_at,deleted_at,sender:profiles(first_name,last_name)')
+    .select('id,conversation_id,sender_id,body,created_at,deleted_at')
     .eq('conversation_id', conversationId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
@@ -112,8 +138,9 @@ async function loadMessages(conversationId = currentConversationId) {
     return;
   }
 
+  const rows = await attachSenders(messages || []);
   if (conversationId !== currentConversationId) return;
-  renderRows(data || []);
+  renderRows(rows);
 }
 
 function scheduleRefresh(delay = 120) {
@@ -241,8 +268,6 @@ function syncChat() {
 
 ensureStyle();
 
-// Capture the submit before the legacy form handler. This guarantees one insert,
-// then refreshes from PostgreSQL even when Realtime is delayed or unavailable.
 document.addEventListener('submit', (event) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement) || form.id !== 'compose') return;
