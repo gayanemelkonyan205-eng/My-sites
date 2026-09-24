@@ -1,6 +1,7 @@
 import { showBootError } from './boot-state.js';
 
 const modules=[
+  './connection-status.js?v=1',
   './telemetry.js?v=2',
   './appearance-runtime.js?v=4',
   './feature-runtime.js?v=4',
