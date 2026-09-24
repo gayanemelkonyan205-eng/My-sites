@@ -1,11 +1,27 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4?bundle';
 
+export const AUTH_STORAGE_KEY = 'sb-yknzcvooglrsvyidestj-auth-token';
+
+export function clearLocalAuthSession() {
+  try {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch (error) {
+    console.warn('Could not clear local auth storage:', error);
+  }
+}
+
 // All portal modules share this instance and its single auth lifecycle.
 export const sb = createClient(
   'https://yknzcvooglrsvyidestj.supabase.co',
   'sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ',
   {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
+    auth: {
+      storageKey: AUTH_STORAGE_KEY,
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce'
+    },
     global: { fetch: async (url, options = {}) => {
       const controller = new AbortController();
       const abort = () => controller.abort();
