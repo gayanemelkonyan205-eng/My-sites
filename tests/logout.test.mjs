@@ -16,6 +16,21 @@ test('shared logout runtime handles desktop and mobile using local signout', asy
   assert.match(logout, /stopImmediatePropagation/, 'desktop legacy onclick must not also fire a second global sign-out');
 });
 
+test('stale server session is treated as a completed local logout', async () => {
+  const logout = await source('logout-runtime.js');
+  const client = await source('supabase-client.js');
+  assert.match(client, /AUTH_STORAGE_KEY/, 'auth storage key should be explicit so stale browser state can be cleared safely');
+  assert.match(logout, /session_not_found/, 'logout should recognize Supabase stale-session responses');
+  assert.match(logout, /clearLocalAuthSession/, 'stale sessions should be removed from browser storage instead of trapping the user in the portal');
+  assert.match(logout, /location\.reload/, 'the portal should reload after clearing stale auth state');
+});
+
+test('logout error toast is deduplicated', async () => {
+  const logout = await source('logout-runtime.js');
+  assert.match(logout, /data-toast-key/, 'logout errors should carry a stable dedupe key');
+  assert.match(logout, /querySelector\([^\n]*logout-error/, 'a second logout error should reuse or suppress the existing toast');
+});
+
 test('mobile more sheet includes a destructive logout action', async () => {
   const nav = await source('simple-nav.js');
   const css = await source('simple-nav.css');
