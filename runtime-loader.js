@@ -3,7 +3,7 @@ import { showBootError } from './boot-state.js';
 const modules=[
   './connection-status.js?v=1',
   './telemetry.js?v=2',
-  './appearance-runtime.js?v=4',
+  './appearance-runtime.js?v=5',
   './feature-runtime.js?v=4',
   './copy-polish.js?v=2',
   './liquid-glass-v2.js?v=3',
