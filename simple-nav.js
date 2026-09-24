@@ -14,14 +14,19 @@ function available(view){const el=source(view);return !!el&&!el.hidden&&el.getAt
 function go(view){ if(!available(view)&&!['dashboard','profile','admin','superadmin'].includes(view))return; closeSheet(); source(view)?.click(); requestAnimationFrame(sync); }
 
 function closeSheet(){ document.querySelector('.sn-backdrop')?.remove(); }
-function openSheet(title, views){
+function openSheet(title, views, includeLogout=false){
   closeSheet();
   const items=views.filter(available);
   const wrap=document.createElement('div');wrap.className='sn-backdrop';
-  wrap.innerHTML=`<section class="sn-sheet" role="dialog" aria-modal="true"><div class="sn-sheet-head"><h3>${title}</h3><button class="sn-sheet-close" aria-label="Փակել">×</button></div><div class="sn-grid">${items.map(v=>{const [i,l,s]=labels[v]||['•',v,''];return `<button class="sn-item ${v==='admin'||v==='superadmin'?'sn-admin':''}" data-sheet-view="${v}"><span class="sn-item-icon">${i}</span><span>${l}<small>${s}</small></span></button>`}).join('')||'<div class="sn-empty">Այս բաժիններում հասանելի գործիք չկա</div>'}</div></section>`;
+  const logoutAction=includeLogout?`<div class="sn-sheet-actions"><button type="button" class="sn-logout" data-sheet-action="logout"><span class="sn-item-icon">⇥</span><span>Դուրս գալ<small>Փակել հաշվի ընթացիկ մուտքը</small></span></button></div>`:'';
+  wrap.innerHTML=`<section class="sn-sheet" role="dialog" aria-modal="true"><div class="sn-sheet-head"><h3>${title}</h3><button class="sn-sheet-close" aria-label="Փակել">×</button></div><div class="sn-grid">${items.map(v=>{const [i,l,s]=labels[v]||['•',v,''];return `<button class="sn-item ${v==='admin'||v==='superadmin'?'sn-admin':''}" data-sheet-view="${v}"><span class="sn-item-icon">${i}</span><span>${l}<small>${s}</small></span></button>`}).join('')||'<div class="sn-empty">Այս բաժիններում հասանելի գործիք չկա</div>'}</div>${logoutAction}</section>`;
   document.body.append(wrap);
   wrap.onclick=e=>{if(e.target===wrap||e.target.closest('.sn-sheet-close'))closeSheet();};
   wrap.querySelectorAll('[data-sheet-view]').forEach(b=>b.onclick=()=>go(b.dataset.sheetView));
+  wrap.querySelector('[data-sheet-action="logout"]')?.addEventListener('click',()=>{
+    closeSheet();
+    window.dispatchEvent(new Event('portal:logout'));
+  });
 }
 
 function rebuild(){
@@ -36,7 +41,7 @@ function rebuild(){
   dock.querySelector('[data-simple-key="study"]')?.addEventListener('click',()=>openSheet('Ուսում',['schedule','homework','files','polls']));
   dock.querySelector('[data-simple-key="chat"]')?.addEventListener('click',()=>available('chat')?go('chat'):openSheet('Չատ',[]));
   dock.querySelector('[data-simple-key="notifications"]')?.addEventListener('click',()=>available('notifications')?go('notifications'):openSheet('Ծանուցումներ',[]));
-  dock.querySelector('[data-simple-key="more"]')?.addEventListener('click',()=>openSheet('Ավելին',['announcements','board','classmates','profile','admin','superadmin']));
+  dock.querySelector('[data-simple-key="more"]')?.addEventListener('click',()=>openSheet('Ավելին',['announcements','board','classmates','profile','admin','superadmin'],true));
   requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
   syncing=false;
 }
