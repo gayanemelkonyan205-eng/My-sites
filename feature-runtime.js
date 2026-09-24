@@ -1,10 +1,10 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4?bundle';
+import { sb } from './supabase-client.js';
 
-const sb=createClient('https://yknzcvooglrsvyidestj.supabase.co','sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 const mapViewToKey={chat:'features.chat',board:'features.board',polls:'features.polls',files:'features.files',schedule:'features.schedule',homework:'features.homework',announcements:'features.announcements',notifications:'features.notifications',classmates:'features.classmates'};
 let settings=null;let loading=false;let last=0;
 
 async function load(force=false){
+  if(document.querySelector('#app')?.dataset.bootState!=='PORTAL')return;
   if(loading)return;
   if(!force&&settings&&Date.now()-last<30000){apply();return}
   loading=true;
@@ -18,12 +18,10 @@ function enabled(key){return settings?.[key]!==false}
 function setClassNameSafely(value){
   const text=String(value||'').trim();
   if(!text)return;
-  document.documentElement.dataset.className=text;
-  document.querySelectorAll('[data-class-name]').forEach(el=>{
+  if(document.documentElement.dataset.className!==text)document.documentElement.dataset.className=text;
+  document.querySelectorAll('span[data-class-name],b[data-class-name],small[data-class-name],[data-class-name] > [data-class-name-label]').forEach(el=>{
     // Never destroy containers. Only dedicated leaf labels may be rewritten.
-    if(el.children.length===0){el.textContent=text;return;}
-    const label=el.querySelector(':scope > [data-class-name-label]');
-    if(label)label.textContent=text;
+    if(el.children.length===0&&el.textContent!==text)el.textContent=text;
   });
 }
 function apply(){
@@ -31,7 +29,8 @@ function apply(){
   setClassNameSafely(settings['class.name']);
   Object.entries(mapViewToKey).forEach(([view,key])=>{
     document.querySelectorAll(`[data-nav="${view}"]`).forEach(el=>{
-      const on=enabled(key);el.hidden=!on;el.setAttribute('aria-hidden',on?'false':'true');
+      const on=enabled(key);if(el.hidden===on)el.hidden=!on;
+      const hidden=on?'false':'true';if(el.getAttribute('aria-hidden')!==hidden)el.setAttribute('aria-hidden',hidden);
     });
   });
   const active=document.querySelector('.sidebar .nav [data-nav].active');
@@ -42,4 +41,5 @@ const observer=new MutationObserver(()=>{if(settings)queueMicrotask(apply);else 
 observer.observe(document.body,{subtree:true,childList:true});
 window.addEventListener('portal:features-refresh',()=>load(true));
 window.addEventListener('focus',()=>load());
+window.addEventListener('portal:boot-state',e=>{if(e.detail.state==='PORTAL')load(true)});
 setTimeout(()=>load(),900);

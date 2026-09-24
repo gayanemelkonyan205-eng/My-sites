@@ -1,7 +1,8 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4?bundle';
-const sb=createClient('https://yknzcvooglrsvyidestj.supabase.co','sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+import { sb } from './supabase-client.js';
+
 let applying=false;
 async function apply(){
+  if(document.querySelector('#app')?.dataset.bootState!=='PORTAL')return;
   if(applying)return;applying=true;
   const {data,error}=await sb.rpc('get_public_site_settings');applying=false;
   if(error||!data)return;
@@ -22,4 +23,5 @@ async function apply(){
 }
 window.addEventListener('portal:appearance-refresh',apply);
 window.addEventListener('focus',apply);
+window.addEventListener('portal:boot-state',e=>{if(e.detail.state==='PORTAL')apply()});
 setTimeout(apply,300);

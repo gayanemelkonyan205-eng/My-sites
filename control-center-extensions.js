@@ -1,8 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4?bundle';
+import { sb } from './supabase-client.js';
 
-const SB_URL='https://yknzcvooglrsvyidestj.supabase.co';
-const SB_KEY='sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ';
-const sb=createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -12,7 +9,6 @@ const track=(event,properties={})=>window.dispatchEvent(new CustomEvent('portal:
 
 let profile=null;
 async function viewer(){
-  if(profile) return profile;
   const {data,error}=await sb.rpc('get_my_profile');
   if(error) throw error;
   profile=Array.isArray(data)?data[0]:data;
@@ -144,7 +140,7 @@ async function renderSystem(body){
     <div class="ccx-system-hero cc-card"><div><span class="ccx-eyebrow">SYSTEM CONTROL</span><h3>Համակարգի կառավարում</h3><p>Միացրու կամ անջատիր բաժինները, փոխիր դասարանի անունը և կառավարիր invite code-ը՝ առանց կոդ խմբագրելու։</p></div><div class="ccx-system-stat"><b>${Number(userCount.count||0)}</b><span>օգտատեր</span></div></div>
     <div class="ccx-grid ccx-system-grid">
       <article class="cc-card"><h3>Դասարան և մոդուլներ</h3><form id="ccx-system-form" class="cc-form">
-        <label>Դասարանի անուն<input name="class.name" value="${esc(get('class.name','8Ա'))}" maxlength="40" required></label>
+        <label>Դասարանի անուն<input name="class.name" value="${esc(get('class.name','9Ա'))}" maxlength="40" required></label>
         <div class="ccx-module-list">${toggles.map(([key,title,desc])=>`<label class="ccx-module"><span><b>${title}</b><small>${desc}</small></span><input type="checkbox" name="${key}" ${get(key,true)!==false?'checked':''}><i></i></label>`).join('')}</div>
         <button class="cc-primary">Պահպանել համակարգը</button>
       </form></article>

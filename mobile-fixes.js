@@ -1,10 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4?bundle';
+import { sb } from './supabase-client.js';
 
-const SB_URL = 'https://yknzcvooglrsvyidestj.supabase.co';
-const SB_KEY = 'sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ';
-const sb = createClient(SB_URL, SB_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-});
 
 function addStyles() {
   if (document.getElementById('mobile-fixes-style')) return;

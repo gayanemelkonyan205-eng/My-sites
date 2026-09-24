@@ -1,297 +1,110 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4?bundle';
+import { sb } from './supabase-client.js';
 
-const SB_URL = 'https://yknzcvooglrsvyidestj.supabase.co';
-const SB_KEY = 'sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ';
-const sb = createClient(SB_URL, SB_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-});
+let active = null;
+const escapeHtml = (value='') => String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const current = chat => active===chat && chat.box.isConnected;
 
-let currentConversationId = null;
-let realtimeChannel = null;
-let pollTimer = null;
-let refreshTimer = null;
-let viewerId = null;
-
-const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-}[char]));
-
-const formatTime = (value) => value
-  ? new Intl.DateTimeFormat('hy-AM', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-  : '—';
-
-function ensureStyle() {
-  if (document.querySelector('#chat-reliable-style')) return;
-  const style = document.createElement('style');
-  style.id = 'chat-reliable-style';
-  style.textContent = `
-    .chat-connection{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--lg-line,rgba(127,127,127,.18));font-size:12px;color:var(--lg-muted,#8e8e93)}
-    .chat-connection .dot{width:8px;height:8px;border-radius:50%;background:#ff9f0a;box-shadow:0 0 0 4px rgba(255,159,10,.12)}
-    .chat-connection.online .dot{background:#30d158;box-shadow:0 0 0 4px rgba(48,209,88,.12)}
-    .chat-connection.offline .dot{background:#ff453a;box-shadow:0 0 0 4px rgba(255,69,58,.12)}
-    .msg.pending{opacity:.68;filter:saturate(.7)}
-    .msg.pending:after{content:' · ուղարկվում է…';font-size:11px;opacity:.7}
-  `;
-  document.head.append(style);
+export function stopChat() {
+  const previous=active;
+  active=null;
+  if(!previous)return;
+  clearInterval(previous.poll);
+  clearTimeout(previous.refresh);
+  if(previous.channel)sb.removeChannel(previous.channel);
 }
 
-function showToast(message, kind = '') {
-  const host = document.querySelector('#toast');
-  if (!host) return;
-  const item = document.createElement('div');
-  item.className = `toast ${kind}`;
-  item.textContent = message;
-  host.append(item);
-  setTimeout(() => item.remove(), 4500);
+function status(chat,text) {
+  if(current(chat)&&chat.status.textContent!==text)chat.status.textContent=text;
 }
 
-function getActiveConversationId() {
-  return document.querySelector('.conv.active')?.dataset?.conv || null;
-}
-
-function getMessagesBox() {
-  return document.querySelector('#messages');
-}
-
-function getComposer() {
-  return document.querySelector('#compose');
-}
-
-function setConnection(state, text) {
-  const room = document.querySelector('.chat-room');
-  if (!room) return;
-  let badge = room.querySelector('.chat-connection');
-  if (!badge) {
-    badge = document.createElement('div');
-    badge.className = 'chat-connection';
-    badge.innerHTML = '<span class="dot"></span><span class="label"></span>';
-    room.prepend(badge);
-  }
-  badge.classList.remove('online', 'offline');
-  if (state) badge.classList.add(state);
-  badge.querySelector('.label').textContent = text;
-}
-
-async function ensureViewer() {
-  if (viewerId) return viewerId;
-  const { data } = await sb.auth.getSession();
-  viewerId = data?.session?.user?.id || null;
-  return viewerId;
-}
-
-function renderRows(rows) {
-  const box = getMessagesBox();
-  if (!box) return;
-  const html = (rows || []).map((message) => {
-    const mine = message.sender_id === viewerId;
-    const senderName = `${message.sender?.first_name || ''} ${message.sender?.last_name || ''}`.trim();
-    const who = mine ? 'Դուք' : (senderName || 'Մասնակից');
-    return `<div class="msg ${mine ? 'mine' : ''}" data-message-id="${escapeHtml(message.id)}">
-      <div class="who">${escapeHtml(who)}</div>
-      ${escapeHtml(message.body || '').replace(/\n/g, '<br>')}
-      <div class="small muted">${formatTime(message.created_at)}</div>
-    </div>`;
-  }).join('');
-  box.innerHTML = html || '<div class="empty">Առաջին հաղորդագրությունը կարող է քոնը լինել ✨</div>';
-  box.scrollTop = box.scrollHeight;
-}
-
-async function attachSenders(messages) {
-  const ids = [...new Set((messages || []).map((message) => message.sender_id).filter(Boolean))];
-  if (!ids.length) return messages || [];
-
-  const { data: profiles, error } = await sb
-    .from('profiles')
-    .select('id,first_name,last_name')
-    .in('id', ids);
-
-  if (error) {
-    console.warn('Chat sender profiles unavailable:', error.message);
-    return messages || [];
-  }
-
-  const byId = new Map((profiles || []).map((profile) => [profile.id, profile]));
-  return (messages || []).map((message) => ({
-    ...message,
-    sender: message.sender_id ? (byId.get(message.sender_id) || null) : null
-  }));
-}
-
-async function loadMessages(conversationId = currentConversationId) {
-  if (!conversationId || !getMessagesBox()) return;
-  await ensureViewer();
-
-  // Do not embed profiles in this request. PostgREST can keep stale relationship
-  // metadata after schema changes and report an ambiguous relationship. Loading
-  // messages and sender profiles separately is explicit and resilient.
-  const { data: messages, error } = await sb
-    .from('messages')
-    .select('id,conversation_id,sender_id,body,created_at,deleted_at')
-    .eq('conversation_id', conversationId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-    .limit(250);
-
-  if (error) {
-    setConnection('offline', 'Չատը չի թարմացվում');
-    showToast(`Չատի սխալ՝ ${error.message}`, 'err');
-    return;
-  }
-
-  const rows = await attachSenders(messages || []);
-  if (conversationId !== currentConversationId) return;
-  renderRows(rows);
-}
-
-function scheduleRefresh(delay = 120) {
-  clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(() => loadMessages(), delay);
-}
-
-function stopPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = null;
-}
-
-function startPolling() {
-  if (pollTimer) return;
-  pollTimer = setInterval(() => {
-    if (document.hidden || !getMessagesBox()) return;
-    loadMessages();
-  }, 5000);
-}
-
-async function subscribeToConversation(conversationId) {
-  if (!conversationId) return;
-  if (realtimeChannel) {
-    await sb.removeChannel(realtimeChannel);
-    realtimeChannel = null;
-  }
-
-  stopPolling();
-  currentConversationId = conversationId;
-  setConnection('', 'Միացում…');
-  await loadMessages(conversationId);
-
-  realtimeChannel = sb
-    .channel(`reliable-chat-${conversationId}-${Math.random().toString(36).slice(2)}`)
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'messages',
-      filter: `conversation_id=eq.${conversationId}`
-    }, () => scheduleRefresh(60))
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        setConnection('online', 'Առցանց');
-        stopPolling();
-        scheduleRefresh(0);
-        return;
-      }
-      if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
-        setConnection('offline', 'Realtime կապ չկա · ավտոմատ թարմացում');
-        startPolling();
-      }
-    });
-}
-
-function appendOptimistic(body) {
-  const box = getMessagesBox();
-  if (!box) return null;
-  box.querySelector('.empty')?.remove();
-  const element = document.createElement('div');
-  element.className = 'msg mine pending';
-  element.innerHTML = `<div class="who">Դուք</div>${escapeHtml(body).replace(/\n/g, '<br>')}<div class="small muted">հիմա</div>`;
-  box.append(element);
-  box.scrollTop = box.scrollHeight;
-  return element;
-}
-
-async function sendMessage(form) {
-  const input = form.querySelector('input[name="body"], textarea[name="body"]');
-  const submit = form.querySelector('button[type="submit"], button:not([type])');
-  const body = input?.value?.trim();
-  const conversationId = getActiveConversationId() || currentConversationId;
-  if (!body || !conversationId) return;
-
-  const userId = await ensureViewer();
-  if (!userId) {
-    showToast('Սեսիան ավարտվել է։ Մուտք գործիր նորից։', 'err');
-    return;
-  }
-
-  const optimistic = appendOptimistic(body);
-  input.value = '';
-  if (submit) submit.disabled = true;
-  input.disabled = true;
-
-  const { error } = await sb.from('messages').insert({
-    conversation_id: conversationId,
-    sender_id: userId,
-    type: 'TEXT',
-    body
-  });
-
-  if (submit) submit.disabled = false;
-  input.disabled = false;
-  input.focus();
-
-  if (error) {
-    optimistic?.remove();
-    input.value = body;
-    setConnection('offline', 'Ուղարկումը չհաջողվեց');
-    showToast(`Հաղորդագրությունը չուղարկվեց՝ ${error.message}`, 'err');
-    return;
-  }
-
-  await loadMessages(conversationId);
-  setConnection(realtimeChannel ? 'online' : '', realtimeChannel ? 'Առցանց' : 'Թարմացված');
-}
-
-function syncChat() {
-  const composer = getComposer();
-  const conversationId = getActiveConversationId();
-  if (!composer || !conversationId) {
-    if (!document.querySelector('.chat-room')) {
-      currentConversationId = null;
-      stopPolling();
-      if (realtimeChannel) {
-        sb.removeChannel(realtimeChannel);
-        realtimeChannel = null;
-      }
+async function loadMessages(chat) {
+  if(!current(chat)||chat.loading)return;
+  chat.loading=true;
+  try {
+    const {data,error}=await sb.from('messages')
+      .select('id,conversation_id,sender_id,body,created_at,deleted_at')
+      .eq('conversation_id',chat.id).is('deleted_at',null)
+      .order('created_at',{ascending:false}).limit(250);
+    if(error)throw error;
+    const rows=(data||[]).slice().reverse();
+    const ids=[...new Set(rows.map(m=>m.sender_id).filter(Boolean))];
+    let senders=new Map();
+    if(ids.length){
+      const result=await sb.from('profiles').select('id,first_name,last_name').in('id',ids);
+      if(!result.error)senders=new Map((result.data||[]).map(p=>[p.id,p]));
     }
-    return;
+    if(!current(chat))return;
+    const nearBottom=chat.box.scrollHeight-chat.box.scrollTop-chat.box.clientHeight<100;
+    const html=rows.map(m=>{
+      const sender=senders.get(m.sender_id);
+      const name=m.sender_id===chat.userId?'Դուք':`${sender?.first_name||''} ${sender?.last_name||''}`.trim()||'Մասնակից';
+      const time=new Intl.DateTimeFormat('hy-AM',{dateStyle:'medium',timeStyle:'short'}).format(new Date(m.created_at));
+      return `<div class="msg ${m.sender_id===chat.userId?'mine':''}" data-message-id="${escapeHtml(m.id)}"><div class="who">${escapeHtml(name)}</div>${escapeHtml(m.body||'').replace(/\n/g,'<br>')}<div class="small muted">${time}</div></div>`;
+    }).join('')||'<div class="empty">Առաջին հաղորդագրությունը կարող է քոնը լինել ✨</div>';
+    if(chat.html!==html){chat.box.innerHTML=html;chat.html=html;if(nearBottom||!chat.loaded)chat.box.scrollTop=chat.box.scrollHeight;}
+    chat.loaded=true;
+    status(chat,chat.online?'Առցանց':'Ավտոմատ թարմացում');
+  }catch{
+    status(chat,'Չատը չի թարմացվում։ Կրկին կփորձենք։');
+  }finally{
+    chat.loading=false;
+    if(chat.reload&&current(chat)){chat.reload=false;refresh(chat,0);}
   }
-
-  if (conversationId !== currentConversationId) subscribeToConversation(conversationId);
 }
 
-ensureStyle();
+function refresh(chat,delay=100) {
+  if(!current(chat))return;
+  if(chat.loading){chat.reload=true;return;}
+  clearTimeout(chat.refresh);
+  chat.refresh=setTimeout(()=>loadMessages(chat),delay);
+}
 
-document.addEventListener('submit', (event) => {
-  const form = event.target;
-  if (!(form instanceof HTMLFormElement) || form.id !== 'compose') return;
+async function send(chat,event) {
   event.preventDefault();
-  event.stopImmediatePropagation();
-  sendMessage(form);
-}, true);
-
-const observer = new MutationObserver(() => {
-  requestAnimationFrame(syncChat);
-});
-observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
-
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && currentConversationId) scheduleRefresh(0);
-});
-window.addEventListener('online', () => {
-  if (currentConversationId) subscribeToConversation(currentConversationId);
-});
-window.addEventListener('offline', () => {
-  if (currentConversationId) {
-    setConnection('offline', 'Ինտերնետ կապ չկա');
-    startPolling();
+  if(!current(chat)||chat.sending)return;
+  const input=chat.form.querySelector('[name="body"]'),button=chat.form.querySelector('button');
+  const body=input.value.trim();
+  if(!body)return;
+  chat.sending=true;button.disabled=true;input.disabled=true;
+  status(chat,'Ուղարկվում է…');
+  try{
+    const {error}=await sb.from('messages').insert({conversation_id:chat.id,sender_id:chat.userId,type:'TEXT',body});
+    if(error)throw error;
+    if(!current(chat))return;
+    input.value='';
+    // Refresh after a confirmed write even if realtime is unavailable.
+    if(chat.loading)chat.reload=true;else await loadMessages(chat);
+  }catch{
+    status(chat,'Չուղարկվեց։ Տեքստը պահպանված է, փորձիր նորից։');
+  }finally{
+    chat.sending=false;button.disabled=false;input.disabled=false;
+    if(current(chat))input.focus();
   }
-});
+}
 
-syncChat();
+export function mountChat(id,userId) {
+  stopChat();
+  const box=document.querySelector('#messages'),form=document.querySelector('#compose');
+  if(!id||!box||!form)return;
+  const badge=document.createElement('div');badge.className='chat-connection';badge.setAttribute('role','status');
+  box.before(badge);
+  const chat={id,userId,box,form,status:badge,loading:false,online:false};
+  active=chat;
+  form.onsubmit=event=>send(chat,event);
+  status(chat,'Միացում…');
+  chat.channel=sb.channel(`class-portal-chat-${id}`)
+    .on('postgres_changes',{event:'*',schema:'public',table:'messages',filter:`conversation_id=eq.${id}`},()=>refresh(chat))
+    .subscribe(state=>{
+      if(!current(chat))return;
+      chat.online=state==='SUBSCRIBED';
+      status(chat,chat.online?'Առցանց':'Ավտոմատ թարմացում');
+      refresh(chat,0);
+    });
+  // Catch silent drops even when the websocket still appears connected.
+  chat.poll=setInterval(()=>{if(!document.hidden)refresh(chat,0)},5000);
+  loadMessages(chat);
+}
+
+window.addEventListener('online',()=>{if(active)refresh(active,0)});
+window.addEventListener('offline',()=>{if(active){active.online=false;status(active,'Ինտերնետ կապ չկա')}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&active)refresh(active,0)});

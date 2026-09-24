@@ -1,8 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4?bundle';
+import { sb } from './supabase-client.js';
 
-const SB_URL = 'https://yknzcvooglrsvyidestj.supabase.co';
-const SB_KEY = 'sb_publishable_BntzoD9F20GkbI5A0yhmQw_1Z5-WrtJ';
-const sb = createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
 
 const cc = { profile: null, mode: null, tab: null, subjects: [], users: [], requests: [] };
 const $ = (s, root = document) => root.querySelector(s);
@@ -73,12 +70,15 @@ function shell(mode) {
   $$('[data-cc-tab]', view).forEach(btn => btn.onclick = () => { cc.tab = btn.dataset.ccTab; renderTab(); });
 }
 
+let navigationRevision=0;
 async function openCenter(mode) {
+  const revision=++navigationRevision;
   try {
     await viewer();
-    if (!cc.profile || !cc.profile.is_active) return toast('Հաշիվը ակտիվ չէ։', 'err');
-    if (mode === 'admin' && !isAdmin()) return toast('Admin իրավունք չկա։', 'err');
-    if (mode === 'superadmin' && !isSuper()) return toast('Միայն Super Admin։', 'err');
+    if(revision!==navigationRevision||!$('.portal'))return;
+    if (!cc.profile || !cc.profile.is_active) throw new Error('Հաշիվը ակտիվ չէ։');
+    if (mode === 'admin' && !isAdmin()) throw new Error('Admin իրավունք չկա։');
+    if (mode === 'superadmin' && !isSuper()) throw new Error('Միայն Super Admin։');
     cc.mode = mode;
     cc.tab = 'overview';
     setActiveNav(mode);
@@ -86,7 +86,11 @@ async function openCenter(mode) {
     track('control_center_opened', { mode });
     await renderTab();
   } catch (error) {
-    toast(`Control Center: ${error.message || error}`, 'err');
+    if(revision!==navigationRevision||!$('.portal'))return;
+    const view=$('#view');
+    if(!view)return;
+    view.innerHTML='<div class="cc-card cc-error"><h3>Չհաջողվեց բեռնել կառավարման կենտրոնը</h3><p>Ստուգիր կապը և քո մուտքի իրավունքները։</p><button class="btn" data-cc-retry>Կրկին փորձել</button></div>';
+    $('[data-cc-retry]',view).onclick=()=>openCenter(mode);
   }
 }
 
@@ -298,21 +302,13 @@ async function audit(body) {
   body.innerHTML=`<div class="cc-list">${(data||[]).map(x=>`<article class="cc-card cc-audit"><div><b>${esc(x.action)}</b><span>${esc(x.entity_type||'')} · ${esc(x.entity_id||'')}</span></div><small>${fmt(x.created_at)}</small><code>${esc(JSON.stringify(x.metadata||{}))}</code></article>`).join('')||'<div class="cc-empty">Audit դատարկ է</div>'}</div>`;
 }
 
-document.addEventListener('click', event => {
-  const nav = event.target.closest('[data-nav="admin"],[data-nav="superadmin"]');
-  if (nav) {
-    event.preventDefault(); event.stopImmediatePropagation();
-    openCenter(nav.dataset.nav);
-    return;
-  }
-  if (cc.mode && event.target.closest('#refresh')) {
-    event.preventDefault(); event.stopImmediatePropagation(); renderTab();
-  }
-}, true);
-
-const observer = new MutationObserver(() => {
-  if (!cc.mode) return;
-  if (!$('#view') || $('.cc-shell')) return;
-  requestAnimationFrame(() => openCenter(cc.mode));
+window.addEventListener('portal:render-view',event=>{
+  navigationRevision++;
+  cc.mode=null;
+  if(!['admin','superadmin'].includes(event.detail.view))return;
+  event.preventDefault();
+  openCenter(event.detail.view);
 });
-observer.observe(document.body, { childList: true, subtree: true });
+window.addEventListener('portal:boot-state',event=>{
+  if(event.detail.state!=='PORTAL'){navigationRevision++;cc.mode=null;cc.profile=null;}
+});
