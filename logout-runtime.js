@@ -6,7 +6,7 @@ const LOGOUT_ERROR_KEY = 'logout-error';
 function showLogoutError() {
   const box = document.querySelector('#toast');
   if (!box) return;
-  const existing = box.querySelector(`[data-toast-key="${LOGOUT_ERROR_KEY}"]`);
+  const existing = box.querySelector('[data-toast-key="logout-error"]');
   if (existing) return;
 
   const message = document.createElement('div');
