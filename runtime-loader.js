@@ -11,7 +11,8 @@ const modules=[
   './chat-polish.js?v=2',
   './control-center.js?v=3',
   './control-center-extensions.js?v=3',
-  './chat-admin-fix.js?v=3'
+  './chat-admin-fix.js?v=3',
+  './super-delete.js?v=1'
 ];
 
 let started=false;
