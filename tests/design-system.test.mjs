@@ -23,12 +23,50 @@ test('appearance runtime only overrides approved premium tokens', async () => {
   const js = await src('appearance-runtime.js');
   assert.match(js, /--pm-accent/);
   assert.match(js, /--pm-radius/);
-  assert.doesNotMatch(js, /--lg-bg/);
+  assert.match(js, /--pm-blur/);
+  assert.match(js, /--pm-motion/);
+  assert.doesNotMatch(js, /--lg-/);
+  assert.doesNotMatch(js, /--cc-/);
 });
 
-test('portal shell exposes premium styling hooks', async () => {
-  const js = await src('portal.js');
-  assert.match(js, /portal-shell/);
-  assert.match(js, /portal-main/);
-  assert.match(js, /portal-sidebar/);
+test('premium layer restyles the existing shell without changing portal behavior', async () => {
+  const css = await src('premium-minimal.css');
+  const portal = await src('portal.js');
+  assert.match(portal, /class="portal"/);
+  assert.match(portal, /class="sidebar"/);
+  assert.match(portal, /class="main"/);
+  assert.match(css, /\.portal\s*\{/);
+  assert.match(css, /\.sidebar\s*\{/);
+  assert.match(css, /\.main\s*\{/);
+  assert.match(css, /@media\s*\(max-width:900px\)[\s\S]*\.sidebar\s*\{[^}]*display\s*:\s*none/i);
+  assert.match(css, /\.mobile\[data-simple-nav="1"\]/);
+});
+
+test('premium components are minimal, semantic and motion-safe', async () => {
+  const css = await src('premium-minimal.css');
+  assert.match(css, /\.card[^\{]*\{/);
+  assert.match(css, /\.btn\.primary/);
+  assert.match(css, /\.btn\.bad/);
+  assert.match(css, /#toast \.toast:nth-last-child\(n\+5\)/);
+  assert.match(css, /@keyframes\s+pmViewIn/);
+  assert.match(css, /@keyframes\s+pmCardIn/);
+  assert.doesNotMatch(css, /#0b1020|#0b1434|#18234a/i);
+});
+
+test('auth chat and control center share the premium minimal language', async () => {
+  const css = await src('premium-minimal.css');
+  assert.match(css, /\.hero-grid\s*\{[^}]*display\s*:\s*none/i);
+  assert.match(css, /\.msg\.mine/);
+  assert.match(css, /\.chat-room \.compose/);
+  assert.match(css, /body:has\(#compose (?:input|textarea):focus\) \.mobile/);
+  assert.match(css, /\.cc-hero h2\s*\{[^}]*display\s*:\s*none/i);
+  assert.match(css, /\.cc-tabbar/);
+});
+
+test('critical auth and navigation selectors remain unchanged', async () => {
+  const portal = await src('portal.js');
+  for (const selector of ['#login','#glogin','#forgot-password','#refresh','#pr']) {
+    assert.match(portal, new RegExp(selector.replace('#','\\#')));
+  }
+  assert.match(portal, /data-nav="\$\{k\}"/);
 });
