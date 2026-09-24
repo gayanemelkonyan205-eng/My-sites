@@ -2,9 +2,9 @@ name: Static portal regression checks
 on:
   push:
     branches: [main]
-    paths: ['*.js', '*.html', 'tests/**', '.github/workflows/static-portal-ci.yml']
+    paths: ['*.js', '*.html', '*.css', 'tests/**', '.github/workflows/static-portal-ci.yml']
   pull_request:
-    paths: ['*.js', '*.html', 'tests/**', '.github/workflows/static-portal-ci.yml']
+    paths: ['*.js', '*.html', '*.css', 'tests/**', '.github/workflows/static-portal-ci.yml']
 permissions:
   contents: read
 jobs:
