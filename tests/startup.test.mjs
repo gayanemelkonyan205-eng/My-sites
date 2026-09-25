@@ -160,6 +160,37 @@ test('denied push permission shows recovery controls instead of hiding them',asy
   assert.equal(h.w.document.querySelector('#push-allow').disabled,false);
 });
 
+test('Settings reconnects an Android-style granted push permission to the signed-in account',async t=>{
+  const h=await harness({session:{user:{id:'student-a'}}});t.after(h.close);
+  Object.defineProperty(h.w,'isSecureContext',{value:true});
+  let prompts=0,linked=false,subscription=null;
+  h.w.Notification={permission:'granted',requestPermission(){prompts++;return Promise.resolve('granted')}};
+  h.w.PushManager=class {};
+  const registration={pushManager:{
+    getSubscription:async()=>subscription,
+    subscribe:async()=>subscription={endpoint:'https://push.test/android',toJSON:()=>({endpoint:'https://push.test/android',keys:{p256dh:'a',auth:'b'}})}
+  }};
+  h.w.navigator.serviceWorker={getRegistration:async()=>registration,register:async()=>registration};
+  h.sb.auth.getUser=async()=>({data:{user:{id:'student-a'}},error:null});
+  const originalRpc=h.sb.rpc,originalFrom=h.sb.from;
+  h.sb.rpc=async(name,args)=>{
+    if(name==='claim_push_subscription'){assert.equal(args.p_endpoint,'https://push.test/android');linked=true;return {data:true,error:null}}
+    return originalRpc(name,args);
+  };
+  h.sb.from=table=>table==='push_subscriptions'
+    ? {select(){return this},eq(){return this},async maybeSingle(){return {data:linked?{id:'one'}:null,error:null}}}
+    : originalFrom(table);
+  await h.run('portal.js');
+  h.w.document.querySelector('[data-nav="settings"]').click();await settle();
+  for(let i=0;i<30&&h.w.document.querySelector('#push-state')?.textContent==='Проверяем…';i++)await new Promise(resolve=>setTimeout(resolve,20));
+  assert.match(h.w.document.querySelector('#push-state').textContent,/Не подключено/);
+  h.w.document.querySelector('#push-recheck').click();await settle();
+  for(let i=0;i<30&&!linked;i++)await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(linked,true);
+  assert.match(h.w.document.querySelector('#push-state').textContent,/Включены/);
+  assert.equal(prompts,0,'retry must not ask for permission again');
+});
+
 test('confirmed send appears without a realtime event',async t=>{
   const h=await harness({session:{user:{id:'student-a'}},rows:{conversations:[{id:'a',type:'CLASS'}]}});t.after(h.close);
   await h.run('portal.js');h.w.document.querySelector('[data-nav="chat"]').click();await settle();

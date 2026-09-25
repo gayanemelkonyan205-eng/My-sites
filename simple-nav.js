@@ -36,6 +36,13 @@ function go(view){
     return;
   }
   if(!available(view))return;
+  // Mobile Settings lives inside a collapsed desktop <details>; navigate
+  // through the portal event instead of clicking an invisible desktop button.
+  if(view==='settings'){
+    window.dispatchEvent(new CustomEvent('portal:open',{detail:{view}}));
+    requestAnimationFrame(sync);
+    return;
+  }
   target.click();
   requestAnimationFrame(sync);
 }
@@ -92,7 +99,7 @@ function rebuild(){
   dock.querySelector('[data-simple-key="study"]')?.addEventListener('click',()=>openSheet('Ուսում',['schedule','homework','files','polls']));
   dock.querySelector('[data-simple-key="chat"]')?.addEventListener('click',()=>available('chat')?go('chat'):openSheet('Չատ',[]));
   dock.querySelector('[data-simple-key="notifications"]')?.addEventListener('click',()=>available('notifications')?go('notifications'):openSheet('Ծանուցումներ',[]));
-  dock.querySelector('[data-simple-key="more"]')?.addEventListener('click',()=>document.querySelector('.sn-backdrop .sn-more')?closeSheet():openSheet('Ավելին',['announcements','board','classmates','polls','files','events','profile','settings','admin','superadmin']));
+  dock.querySelector('[data-simple-key="more"]')?.addEventListener('click',()=>document.querySelector('.sn-backdrop .sn-more')?closeSheet():openSheet('Ավելին',['settings','profile','announcements','board','classmates','polls','files','events','admin','superadmin']));
   requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
   syncing=false;
 }

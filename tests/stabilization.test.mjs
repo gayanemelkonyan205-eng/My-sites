@@ -40,9 +40,15 @@ test('mobile dock keeps five actions and More opens every student section', asyn
   dock.querySelector('[data-simple-key="more"]').click();
   const sheet = window.document.querySelector('.sn-sheet.sn-more');
   assert.ok(sheet);
-  assert.deepEqual([...sheet.querySelectorAll('[data-sheet-view]')].map(item => item.dataset.sheetView), ['announcements', 'board', 'classmates', 'polls', 'files', 'events', 'profile', 'settings']);
+  assert.deepEqual([...sheet.querySelectorAll('[data-sheet-view]')].map(item => item.dataset.sheetView), ['settings', 'profile', 'announcements', 'board', 'classmates', 'polls', 'files', 'events']);
   assert.ok(sheet.querySelector('[data-sheet-action="logout"]'));
-  sheet.querySelector('.sn-sheet-close').click();
+  let requestedView=null;
+  window.addEventListener('portal:open',event=>{requestedView=event.detail.view});
+  sheet.querySelector('[data-sheet-view="settings"]').click();
+  assert.equal(requestedView,'settings','Settings must open without clicking the hidden desktop sidebar');
+  assert.equal(window.document.querySelector('.sn-sheet'),null);
+  dock.querySelector('[data-simple-key="more"]').click();
+  window.document.querySelector('.sn-sheet-close').click();
   assert.equal(window.document.querySelector('.sn-sheet'), null);
   assert.equal(dock.children.length, 5);
 });

@@ -364,12 +364,12 @@ async function settings(v){
     try{status=push?await push.getPushStatus():'unsupported'}catch(error){console.warn('Push status unavailable',error)}
     if(!v.isConnected)return;
     currentStatus=status;
-    const labels={enabled:'Включены',disabled:'Выключены',permission_required:'Нужно разрешение',unsupported:'Браузер не поддерживает push',denied:'Заблокированы в браузере'};
+    const labels={enabled:'Включены',disabled:'Не подключено к аккаунту',permission_required:'Нужно разрешение',unsupported:'Браузер не поддерживает push',denied:'Заблокированы в браузере'};
     state.textContent=labels[status]||labels.unsupported;
     allow.disabled=status==='enabled'||status==='unsupported';
-    allow.textContent=status==='denied'?'Как разрешить':status==='disabled'?'Включить':'Разрешить';
+    allow.textContent=status==='denied'?'Как разрешить':status==='disabled'?'Подключить':'Разрешить';
     disable.disabled=!['enabled','denied'].includes(status);
-    help.textContent=status==='denied'?'Chrome уже запретил уведомления. Сайт не может изменить это разрешение за вас.':status==='unsupported'?'Этот браузер не поддерживает push-уведомления.':status==='disabled'?'Push на сайте выключен. Разрешение в браузере может оставаться включённым.':'';
+    help.textContent=status==='denied'?'Chrome уже запретил уведомления. Сайт не может изменить это разрешение за вас.':status==='unsupported'?'Этот браузер не поддерживает push-уведомления.':status==='disabled'?`Это устройство пока не привязано к аккаунту ${st.profile?.first_name||''}. Нажмите «Подключить».`:'';
     browserHelp.hidden=status!=='denied';
   }
   allow.onclick=async()=>{
@@ -379,14 +379,20 @@ async function settings(v){
     try{
       await push.enablePush();
       await refreshPush();
-    }catch(error){console.warn('Push action failed',error);toast('Не удалось включить push. Попробуйте снова.','err');await refreshPush()}
+    }catch(error){console.warn('Push action failed',error);toast(`Не удалось подключить push: ${error?.message||'повторите попытку'}`,'err');await refreshPush()}
   };
   disable.onclick=async()=>{
     if(!push)return;
     disable.disabled=true;
     try{await push.disablePush();await refreshPush()}catch(error){console.warn('Push disable failed',error);toast('Не удалось отключить push. Попробуйте снова.','err');await refreshPush()}
   };
-  recheck.onclick=refreshPush;
+  recheck.onclick=async()=>{
+    recheck.disabled=true;
+    try{
+      if(push&&'Notification' in window&&Notification.permission==='granted')await push.syncPushIfAllowed();
+    }catch(error){console.warn('Push retry failed',error);toast(`Не удалось подключить push: ${error?.message||'повторите попытку'}`,'err')}
+    finally{await refreshPush();recheck.disabled=false}
+  };
   window.addEventListener('portal:push-synced',refreshPush,{once:true});
   await refreshPush();
 }
