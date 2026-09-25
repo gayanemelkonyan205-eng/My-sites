@@ -17,6 +17,13 @@ function closeSheet(){
   document.querySelectorAll('.sn-backdrop').forEach(el=>el.remove());
   document.documentElement.classList.remove('sn-sheet-open');
 }
+function scrubStaleOverlays(){
+  document.querySelectorAll('.sn-backdrop').forEach(backdrop=>{
+    const sheet=backdrop.querySelector('.sn-sheet');
+    if(!sheet||sheet.hidden||getComputedStyle(sheet).display==='none')backdrop.remove();
+  });
+  if(!document.querySelector('.sn-backdrop'))document.documentElement.classList.remove('sn-sheet-open');
+}
 function go(view){
   const target=source(view);
   closeSheet();
@@ -73,6 +80,7 @@ function rebuild(){
 }
 
 function sync(){
+  scrubStaleOverlays();
   const view=currentView();
   if(lastView!==null&&view!==lastView)closeSheet();
   lastView=view;
@@ -83,11 +91,14 @@ function sync(){
   if(dock.children.length!==5) rebuild();
 }
 
+closeSheet();
 const observer=new MutationObserver(()=>queueMicrotask(sync));
 observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','hidden','aria-hidden']});
 window.addEventListener('portal:features-refresh',()=>queueMicrotask(sync));
 window.addEventListener('popstate',closeSheet);
 window.addEventListener('hashchange',closeSheet);
+window.addEventListener('pageshow',()=>{closeSheet();requestAnimationFrame(sync)});
+window.addEventListener('focus',scrubStaleOverlays);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)closeSheet()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)closeSheet();else scrubStaleOverlays()});
 sync();
