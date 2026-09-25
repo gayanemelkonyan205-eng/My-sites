@@ -3,17 +3,19 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { JSDOM } from 'jsdom';
+import { JSDOM, VirtualConsole } from 'jsdom';
 
 const root = new URL('../', import.meta.url);
 const settle = async () => { for (let i=0;i<12;i++) await new Promise(setImmediate); };
 
 async function harness(options={}) {
-  const dom = new JSDOM('<!doctype html><html><head></head><body><main id="app" data-boot-state="BOOTING"><div class="boot">Loading</div></main><div id="toast"></div></body></html>', {url:'https://portal.test/', runScripts:'outside-only', pretendToBeVisual:true});
+  const virtualConsole=options.ignoreNavigation?new VirtualConsole():undefined;
+  if(virtualConsole)virtualConsole.on('jsdomError',error=>{if(!/Not implemented: navigation/.test(error.message))throw error});
+  const dom = new JSDOM('<!doctype html><html><head></head><body><main id="app" data-boot-state="BOOTING"><div class="boot">Loading</div></main><div id="toast"></div></body></html>', {url:'https://portal.test/', runScripts:'outside-only', pretendToBeVisual:true,...(virtualConsole?{virtualConsole}:{})});
   const {window:w}=dom, timers=[], observers=[], callbacks=[];
   let clients=0, locked=false, callsUnderLock=0, profileCalls=0, clientOptions;
   let session=options.session||null;
-  const profile={id:'student-a',first_name:'Անի',last_name:'Ա',username:'ani',role:options.role||'STUDENT',is_active:true};
+  const profile={id:'student-a',first_name:'Անի',last_name:'Ա',username:'ani',role:options.role||'STUDENT',is_active:options.active??true};
   const channels=new Set(),rows=options.rows||{};
   const query=table=>{let inserted;const q={then(resolve){if(table==='conversations'&&options.conversationRequest)return options.conversationRequest().then(resolve);if(inserted&&table==='messages'){(rows.messages||=[]).push({...inserted,id:'new-message',created_at:'2026-09-24T10:00:00Z'});inserted=null;}return Promise.resolve({data:rows[table]||[],error:null}).then(resolve)}};for(const key of ['select','order','limit','eq','gte','is','in','neq','update','delete','upsert'])q[key]=()=>q;q.insert=value=>{inserted=value;return q};return q;};
   const sb={auth:{
@@ -75,6 +77,17 @@ test('password recovery opens reset form instead of the portal',async t=>{
   h.emit('PASSWORD_RECOVERY',{user:{id:'student-a'}});await h.tick(0);
   assert.ok(h.w.document.querySelector('#reset-password'));
   assert.equal(h.w.document.querySelector('.portal'),null);
+});
+
+test('blocked account can leave locally when the Auth sign-out request fails',async t=>{
+  const h=await harness({session:{user:{id:'student-a'}},active:false,ignoreNavigation:true});t.after(h.close);
+  h.sb.auth.signOut=async()=>({error:{message:'Request timed out'}});
+  await h.run('portal.js');
+  assert.ok(h.w.document.querySelector('#out'),'blocked page needs an exit button');
+  const key='sb-yknzcvooglrsvyidestj-auth-token';
+  h.w.localStorage.setItem(key,'stale-session');
+  h.w.document.querySelector('#out').click();await settle();
+  assert.equal(h.w.localStorage.getItem(key),null);
 });
 
 test('login provides a password recovery form',async t=>{

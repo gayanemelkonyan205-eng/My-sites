@@ -1,6 +1,6 @@
 import { mountChat, stopChat } from './chat-reliable.js?v=3';
 import { setBootState, showBootError } from './boot-state.js';
-import { sb } from './supabase-client.js';
+import { sb, AUTH_STORAGE_KEY, clearLocalAuthSession } from './supabase-client.js';
 import { toast } from './notifications-ui.js';
 import { icon } from './icons.js?v=2';
 import { schoolDate, schoolWeekday, effectiveLessons } from './school-day.js';
@@ -28,6 +28,13 @@ const admin=()=>['ADMIN','SUPER_ADMIN'].includes(st.profile?.role), superAdmin=(
 function theme(){const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;localStorage.setItem('portal-theme',n)}
 document.documentElement.dataset.theme=localStorage.getItem('portal-theme')||'dark';
 function busy(b,on){if(!b)return;if(on){b.dataset.t=b.textContent;b.disabled=true;b.textContent='Սպասեք…'}else{b.disabled=false;b.textContent=b.dataset.t||b.textContent}}
+function exitLocalSession(){
+  clearLocalAuthSession();
+  try{if(localStorage.getItem(AUTH_STORAGE_KEY)!==null)throw new Error('Auth storage was not cleared')}
+  catch{toast('Դուրս գալը չհաջողվեց։ Փորձիր կրկին։','err');return false}
+  location.reload();
+  return true;
+}
 function pending(){try{return JSON.parse(localStorage.getItem('portal-pending')||'null')}catch{return null}}
 function savePending(x){localStorage.setItem('portal-pending',JSON.stringify(x))} function clearPending(){localStorage.removeItem('portal-pending')}
 
@@ -81,7 +88,7 @@ async function identity(preserve=false){
       }
       if(!next){st.profile=null;return completeProfile();}
     }
-    if(!next.is_active){st.profile=null;cleanup();await sb.auth.signOut({scope:'local'});return blocked();}
+    if(!next.is_active){st.profile=null;cleanup();try{await sb.auth.signOut({scope:'local'})}catch{}return blocked();}
     const unchanged=st.profile?.id===next.id&&st.profile?.role===next.role;
     st.profile=next;
     if(preserve&&unchanged&&app.querySelector('.portal'))return;
@@ -128,15 +135,14 @@ function resetPassword(){
   if($('#reset-password'))return;
   app.innerHTML=`<div class="auth-side" style="min-height:100vh"><div class="auth-card"><h2>Նոր գաղտնաբառ</h2><form id="reset-password"><div class="field"><label for="new-password">Գաղտնաբառ</label><input id="new-password" name="password" type="password" minlength="8" autocomplete="new-password" required></div><div class="field"><label for="confirm-password">Կրկնիր գաղտնաբառը</label><input id="confirm-password" name="confirm" type="password" minlength="8" autocomplete="new-password" required></div><button class="btn primary wide">Պահպանել</button></form><button id="cancel-reset" class="btn wide" style="margin-top:9px">Չեղարկել</button></div></div>`;
   setBootState('LOGIN');
-  $('#cancel-reset').onclick=()=>sb.auth.signOut({scope:'local'});
+  $('#cancel-reset').onclick=exitLocalSession;
   $('#reset-password').onsubmit=async e=>{
     e.preventDefault();const b=e.submitter,f=new FormData(e.currentTarget);
     if(f.get('password')!==f.get('confirm'))return toast('Գաղտնաբառերը չեն համընկնում։','err');
     busy(b,1);
     try{
       const {error}=await sb.auth.updateUser({password:f.get('password')});if(error)throw error;
-      recovering=false;await sb.auth.signOut({scope:'local'});auth();
-      toast('Գաղտնաբառը փոխվեց։ Մուտք գործիր նոր գաղտնաբառով։','ok');
+      recovering=false;if(!exitLocalSession())throw new Error('Local sign-out failed');
     }catch{toast('Գաղտնաբառը չփոխվեց։ Նոր հղում խնդրիր և փորձիր կրկին։','err')}
     finally{busy(b,0)}
   };
@@ -144,8 +150,8 @@ function resetPassword(){
 function registerForm(){$('#auth-body').innerHTML=`<h2>Գրանցվել դասարանում</h2><p class="muted">Գրանցումը հնարավոր է միայն գործող invite code-ով։</p><form id="reg"><div class="row2"><div class="field"><label>Անուն</label><input name="first" required></div><div class="field"><label>Ազգանուն</label><input name="last" required></div></div><div class="field"><label>Username</label><input name="username" pattern="[A-Za-z0-9_.-]+" minlength="3" required></div><div class="field"><label>Email</label><input name="email" type="email" required></div><div class="field"><label>Գաղտնաբառ</label><input name="password" type="password" minlength="8" required></div><div class="field"><label>Invite code</label><input name="invite" minlength="8" required></div><button class="btn primary wide">Ստեղծել հաշիվ</button></form><div class="divider">կամ</div><button id="greg" class="btn wide">G · Գրանցվել Google-ով</button>`;$('#reg').onsubmit=register;$('#greg').onclick=()=>google(true)}
 async function register(e){e.preventDefault();const b=e.submitter, f=new FormData(e.currentTarget), p={first:f.get('first'),last:f.get('last'),username:f.get('username'),invite:f.get('invite')};busy(b,1);const v=await sb.rpc('validate_class_invite',{p_code:p.invite});if(v.error||v.data!==true){busy(b,0);return toast('Invite code-ը սխալ է կամ այլևս չի գործում։','err')}savePending(p);const r=await sb.auth.signUp({email:f.get('email'),password:f.get('password'),options:{emailRedirectTo:`${location.origin}${location.pathname}`}});busy(b,0);if(r.error)return toast(r.error.message,'err');if(r.data.session)return;toast('Հաշիվը ստեղծվել է։ Եթե email հաստատումը միացված է՝ բացիր նամակը և վերադարձիր այստեղ։','ok');auth('login')}
 async function google(reg){if(reg){const f=$('#reg');if(!f.reportValidity())return;const d=new FormData(f),p={first:d.get('first'),last:d.get('last'),username:d.get('username'),invite:d.get('invite')};const v=await sb.rpc('validate_class_invite',{p_code:p.invite});if(v.error||v.data!==true)return toast('Invite code-ը սխալ է։','err');savePending(p)}const r=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:`${location.origin}${location.pathname}`}});if(r.error)toast('Google մուտքը դեռ կարգավորված չէ․ '+r.error.message,'err')}
-function completeProfile(){cleanup();app.innerHTML=`<div class="auth-side" style="min-height:100vh"><div class="auth-card"><div class="logo">Դ</div><h2>Ավարտիր պրոֆիլը</h2><p class="muted">Auth հաշիվը կա, բայց դասարանի պրոֆիլը դեռ ակտիվացված չէ։</p><form id="complete"><div class="row2"><div class="field"><label>Անուն</label><input name="first" required></div><div class="field"><label>Ազգանուն</label><input name="last" required></div></div><div class="field"><label>Username</label><input name="username" required></div><div class="field"><label>Invite code</label><input name="invite" minlength="8" required></div><button class="btn primary wide">Ակտիվացնել</button></form><button id="out" class="btn wide" style="margin-top:9px">Դուրս գալ</button></div></div>`;$('#complete').onsubmit=async e=>{e.preventDefault();const b=e.submitter,d=new FormData(e.currentTarget);busy(b,1);const ok=await claim({first:d.get('first'),last:d.get('last'),username:d.get('username'),invite:d.get('invite')});busy(b,0);ok?identity():toast('Տվյալները կամ invite code-ը սխալ են։','err')};$('#out').onclick=()=>sb.auth.signOut();setBootState('LOGIN')}
-function blocked(){app.innerHTML=`<div class="auth-side" style="min-height:100vh"><div class="auth-card"><h2>Հաշիվը արգելափակված է</h2><p class="muted">Դիմիր Super Admin-ին։</p><button id="out" class="btn wide">Դուրս գալ</button></div></div>`;$('#out').onclick=()=>sb.auth.signOut();setBootState('LOGIN')}
+function completeProfile(){cleanup();app.innerHTML=`<div class="auth-side" style="min-height:100vh"><div class="auth-card"><div class="logo">Դ</div><h2>Ավարտիր պրոֆիլը</h2><p class="muted">Auth հաշիվը կա, բայց դասարանի պրոֆիլը դեռ ակտիվացված չէ։</p><form id="complete"><div class="row2"><div class="field"><label>Անուն</label><input name="first" required></div><div class="field"><label>Ազգանուն</label><input name="last" required></div></div><div class="field"><label>Username</label><input name="username" required></div><div class="field"><label>Invite code</label><input name="invite" minlength="8" required></div><button class="btn primary wide">Ակտիվացնել</button></form><button id="out" class="btn wide" style="margin-top:9px">Դուրս գալ</button></div></div>`;$('#complete').onsubmit=async e=>{e.preventDefault();const b=e.submitter,d=new FormData(e.currentTarget);busy(b,1);const ok=await claim({first:d.get('first'),last:d.get('last'),username:d.get('username'),invite:d.get('invite')});busy(b,0);ok?identity():toast('Տվյալները կամ invite code-ը սխալ են։','err')};$('#out').onclick=exitLocalSession;setBootState('LOGIN')}
+function blocked(){app.innerHTML=`<div class="auth-side" style="min-height:100vh"><div class="auth-card"><h2>Հաշիվը արգելափակված է</h2><p class="muted">Դիմիր Super Admin-ին։</p><button id="out" class="btn wide">Դուրս գալ</button></div></div>`;$('#out').onclick=exitLocalSession;setBootState('LOGIN')}
 function fatal(){cleanup();st.profile=null;showBootError()}
 
 function items(){const a=[['dashboard','Գլխավոր'],['schedule','Դասացուցակ'],['homework','Տնայիններ'],['announcements','Հայտարարություններ'],['events','Միջոցառումներ'],['board','Տախտակ'],['chat','Չատ'],['polls','Հարցումներ'],['files','Ֆայլեր'],['classmates','Դասընկերներ'],['notifications','Ծանուցումներ'],['profile','Պրոֆիլ'],['settings','Կարգավորումներ']];if(admin())a.push(['admin','Admin']);if(superAdmin())a.push(['superadmin','Super Admin']);return a.map(([key,label])=>[key,icon(key),label])}
@@ -162,7 +168,7 @@ function portal(){
     <main class="main"><div class="top"><div><div class="small muted">Դասարանի փակ պորտալ</div><h1 id="vt">${esc(titles[st.view])}</h1></div><div class="actions"><button id="global-search" class="btn" type="button">${icon('search')} Փնտրել</button><button id="refresh" class="btn" type="button" aria-label="Թարմացնել">↻</button><button id="theme2" class="btn" type="button" aria-label="Փոխել թեման">${icon('appearance')}</button></div></div><section id="view"></section></main>
     <nav class="mobile" aria-label="Արագ բաժիններ">${[['dashboard','Գլխավոր'],['schedule','Դասեր'],['homework','Տնային'],['chat','Չատ'],['profile','Պրոֆիլ']].map(([key,label])=>`<button data-nav="${key}" class="${st.view===key?'active':''}"><span class="sn-icon">${icon(key)}</span>${label}</button>`).join('')}</nav></div>`;
   $$('[data-nav]').forEach(button=>button.onclick=()=>{st.target=null;st.view=button.dataset.nav;portal()});
-  $('#logout').onclick=()=>sb.auth.signOut();
+  $('#logout').onclick=exitLocalSession;
   $('#theme').onclick=theme;$('#theme2').onclick=theme;
   $('#refresh').onclick=renderView;
   renderView();setBootState('PORTAL');
