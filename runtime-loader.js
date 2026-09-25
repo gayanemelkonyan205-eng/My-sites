@@ -12,7 +12,8 @@ const modules=[
   './chat-polish.js?v=2',
   './control-center.js?v=4',
   './control-center-extensions.js?v=4',
-  './owner-center.js?v=1',
+  './owner-center.js?v=2',
+  './owner-tab-guard.js?v=1',
   './chat-admin-fix.js?v=4'
 ];
 
@@ -26,7 +27,6 @@ function portalReady(){
 async function start(){
   if(started||!portalReady())return;
   started=true;
-  // Give the main portal one paint before optional modules attach observers/listeners.
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   for(const src of modules){
     try{await import(src)}catch(error){
