@@ -17,12 +17,21 @@
   <link rel="stylesheet" href="./portal-design.css?v=3">
   <link rel="stylesheet" href="./simple-nav.css?v=3">
   <link rel="stylesheet" href="./premium-minimal.css?v=2">
+  <style>
+    /* Recovery mode: keep the core portal fully tappable on mobile. */
+    @media (max-width:900px){
+      .mobile{z-index:1000!important;pointer-events:auto!important}
+      .mobile button{pointer-events:auto!important;touch-action:manipulation!important}
+      .main{pointer-events:auto!important}
+      #view{pointer-events:auto!important}
+    }
+  </style>
 </head>
 <body>
   <main id="app" data-boot-state="BOOTING"><div class="boot"><div class="logo">Դ</div><div><b>9Ա դասարան</b><small>Բեռնվում է…</small></div></div></main>
   <div id="toast"></div>
-  <!-- Keep boot deterministic: only portal.js may touch Auth before LOGIN/PORTAL. -->
-  <script type="module" src="./portal.js?v=9"></script>
-  <script type="module" src="./runtime-loader.js?v=13"></script>
+  <!-- Stability mode: only the core portal runs. Extra runtime modules are temporarily disabled
+       so navigation/chat cannot be intercepted by secondary scripts. -->
+  <script type="module" src="./portal.js?v=10"></script>
 </body>
 </html>
