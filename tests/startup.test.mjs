@@ -124,6 +124,27 @@ test('login does not request member-only appearance settings',async t=>{
   assert.equal(requests,2);
 });
 
+test('denied push permission shows recovery controls instead of hiding them',async t=>{
+  const h=await harness({session:{user:{id:'student-a'}}});t.after(h.close);
+  Object.defineProperty(h.w,'isSecureContext',{value:true});
+  let prompts=0;
+  h.w.Notification={permission:'denied',requestPermission(){prompts++;return Promise.resolve('denied')}};
+  h.w.PushManager=class {};
+  h.w.navigator.serviceWorker={getRegistration:async()=>null};
+  await h.run('portal.js');
+  h.w.document.querySelector('[data-nav="settings"]').click();await settle();
+  assert.match(h.w.document.querySelector('#push-state').textContent,/Արգելված/);
+  assert.equal(h.w.document.querySelector('#push-allow').disabled,false);
+  assert.ok(h.w.document.querySelector('#push-disable'));
+  assert.equal(h.w.document.querySelector('#push-browser-help').hidden,false);
+  h.w.document.querySelector('#push-allow').click();
+  assert.equal(prompts,0,'the site cannot re-prompt after the browser blocked permission');
+  h.w.Notification.permission='default';
+  h.w.document.querySelector('#push-recheck').click();await settle();
+  assert.match(h.w.document.querySelector('#push-state').textContent,/Թույլտվություն/);
+  assert.equal(h.w.document.querySelector('#push-allow').disabled,false);
+});
+
 test('confirmed send appears without a realtime event',async t=>{
   const h=await harness({session:{user:{id:'student-a'}},rows:{conversations:[{id:'a',type:'CLASS'}]}});t.after(h.close);
   await h.run('portal.js');h.w.document.querySelector('[data-nav="chat"]').click();await settle();
