@@ -1,0 +1,19 @@
+{
+  "name": "9Ա Դասարան",
+  "short_name": "9Ա",
+  "description": "9Ա դասարանի փակ պորտալ՝ չատ, դասացուցակ, տնայիններ և ծանուցումներ։",
+  "start_url": "/My-sites/",
+  "scope": "/My-sites/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "hy",
+  "icons": [
+    {
+      "src": "/My-sites/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
