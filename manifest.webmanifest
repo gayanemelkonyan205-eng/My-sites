@@ -3,12 +3,25 @@
   "short_name": "9Ա",
   "description": "9Ա դասարանի փակ պորտալ՝ չատ, դասացուցակ, տնայիններ և ծանուցումներ։",
   "start_url": "/My-sites/",
+  "id": "/My-sites/",
   "scope": "/My-sites/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "lang": "hy",
   "icons": [
+    {
+      "src": "/My-sites/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/My-sites/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/My-sites/app-icon.svg",
       "sizes": "any",

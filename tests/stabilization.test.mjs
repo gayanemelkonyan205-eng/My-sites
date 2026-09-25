@@ -60,6 +60,23 @@ test('service worker handles only portal navigations and never API traffic', asy
   assert.match(source, /const CACHE_NAME='class-portal-shell-v\d+'/);
 });
 
+test('Chrome can discover an installable portal manifest and both PNG icon sizes', async () => {
+  const html = await readFile(new URL('index.html', root), 'utf8');
+  assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest/);
+  const manifest = JSON.parse(await readFile(new URL('manifest.webmanifest', root), 'utf8'));
+  assert.equal(manifest.start_url, '/My-sites/');
+  assert.equal(manifest.scope, '/My-sites/');
+  assert.equal(manifest.display, 'standalone');
+  for (const size of [192, 512]) {
+    const icon = manifest.icons.find(item => item.sizes === `${size}x${size}` && item.type === 'image/png');
+    assert.ok(icon, `missing ${size}px PNG icon`);
+    const png = await readFile(new URL(icon.src.slice('/My-sites/'.length), root));
+    assert.equal(png.subarray(1, 4).toString(), 'PNG');
+    assert.equal(png.readUInt32BE(16), size);
+    assert.equal(png.readUInt32BE(20), size);
+  }
+});
+
 test('push asks permission only on explicit enable and can be disabled', async t => {
   const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://portal.test/My-sites/', runScripts: 'outside-only' });
   t.after(() => dom.window.close());
