@@ -133,15 +133,17 @@ test('denied push permission shows recovery controls instead of hiding them',asy
   h.w.navigator.serviceWorker={getRegistration:async()=>null};
   await h.run('portal.js');
   h.w.document.querySelector('[data-nav="settings"]').click();await settle();
-  assert.match(h.w.document.querySelector('#push-state').textContent,/Արգելված/);
+  assert.match(h.w.document.querySelector('#push-state').textContent,/Заблокированы/);
   assert.equal(h.w.document.querySelector('#push-allow').disabled,false);
+  assert.equal(h.w.document.querySelector('#push-allow').textContent,'Как разрешить');
   assert.ok(h.w.document.querySelector('#push-disable'));
   assert.equal(h.w.document.querySelector('#push-browser-help').hidden,false);
+  assert.match(h.w.document.querySelector('#push-browser-help').textContent,/Настройки сайта.*Уведомления.*Разрешить/);
   h.w.document.querySelector('#push-allow').click();
   assert.equal(prompts,0,'the site cannot re-prompt after the browser blocked permission');
   h.w.Notification.permission='default';
   h.w.document.querySelector('#push-recheck').click();await settle();
-  assert.match(h.w.document.querySelector('#push-state').textContent,/Թույլտվություն/);
+  assert.match(h.w.document.querySelector('#push-state').textContent,/Нужно разрешение/);
   assert.equal(h.w.document.querySelector('#push-allow').disabled,false);
 });
 

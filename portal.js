@@ -345,7 +345,7 @@ async function notifications(v){
   });
 }
 async function settings(v){
-  v.innerHTML=`<div class="settings-grid"><section class="card settings-card"><h3>Push ծանուցումներ</h3><p class="muted">Ընտրիր՝ ստանալ սարքի ծանուցումներ, թե անջատել դրանք։</p><div id="push-state" class="badge" role="status">Ստուգվում է…</div><div class="settings-actions"><button id="push-allow" class="btn primary" type="button" disabled>Թույլատրել</button><button id="push-disable" class="btn" type="button" disabled>Անջատել</button><button id="push-recheck" class="btn" type="button">Կրկին ստուգել</button></div><p id="push-help" class="small muted"></p><div id="push-browser-help" class="small muted" hidden tabindex="-1">Chrome-ում հասցեի ձախ կողմի նշանը սեղմիր → «Կայքի կարգավորումներ» → «Ծանուցումներ» → «Թույլատրել»։ Ապա վերադարձիր այստեղ և սեղմիր «Կրկին ստուգել»։ Նույն տեղում կարող ես ընտրել «Արգելել»՝ բրաուզերի թույլտվությունը փակելու համար։</div></section><section class="card settings-card"><h3>Տեսք</h3><p class="muted">Դասարան՝ <span data-class-name>9Ա</span></p><button id="settings-theme" class="btn" type="button">Փոխել թեման</button></section><section class="card settings-card"><h3>Հիշեցումներ</h3><p class="muted">Ընտրիր՝ որ փոփոխությունների մասին տեղեկանալ պորտալի ներսում։</p><button id="settings-alerts" class="btn" type="button">Բացել ծանուցումները</button></section></div>`;
+  v.innerHTML=`<div class="settings-grid"><section class="card settings-card"><h3>Push-уведомления</h3><p class="muted">Включите уведомления на устройстве или отключите их для этого сайта.</p><div id="push-state" class="badge" role="status">Проверяем…</div><div class="settings-actions"><button id="push-allow" class="btn primary" type="button" disabled>Разрешить</button><button id="push-disable" class="btn" type="button" disabled>Отключить</button><button id="push-recheck" class="btn" type="button">Проверить снова</button></div><p id="push-help" class="small muted"></p><div id="push-browser-help" class="push-browser-help" hidden tabindex="-1"><b>Как разрешить в Chrome</b><ol><li>Нажмите значок ползунков слева от адреса сайта.</li><li>Откройте «Настройки сайта» → «Уведомления».</li><li>Выберите «Разрешить».</li><li>Вернитесь сюда и нажмите «Проверить снова».</li></ol><p>Если пункта нет: ⋮ → «Настройки» → «Конфиденциальность и безопасность» → «Настройки сайтов» → «Уведомления».</p><p>Чтобы запретить уведомления в самом браузере, выберите там «Блокировать».</p></div></section><section class="card settings-card"><h3>Տեսք</h3><p class="muted">Դասարան՝ <span data-class-name>9Ա</span></p><button id="settings-theme" class="btn" type="button">Փոխել թեման</button></section><section class="card settings-card"><h3>Հիշեցումներ</h3><p class="muted">Ընտրիր՝ որ փոփոխությունների մասին տեղեկանալ պորտալի ներսում։</p><button id="settings-alerts" class="btn" type="button">Բացել ծանուցումները</button></section></div>`;
   v.querySelector('#settings-theme').onclick=theme;
   v.querySelector('#settings-alerts').onclick=()=>window.dispatchEvent(new CustomEvent('portal:open',{detail:{view:'notifications'}}));
   let push;
@@ -358,12 +358,12 @@ async function settings(v){
     try{status=push?await push.getPushStatus():'unsupported'}catch(error){console.warn('Push status unavailable',error)}
     if(!v.isConnected)return;
     currentStatus=status;
-    const labels={enabled:'Միացված',disabled:'Անջատված',permission_required:'Թույլտվություն է պահանջվում',unsupported:'Բրաուզերը չի աջակցում',denied:'Արգելված է բրաուզերում'};
+    const labels={enabled:'Включены',disabled:'Выключены',permission_required:'Нужно разрешение',unsupported:'Браузер не поддерживает push',denied:'Заблокированы в браузере'};
     state.textContent=labels[status]||labels.unsupported;
     allow.disabled=status==='enabled'||status==='unsupported';
-    allow.textContent=status==='denied'?'Ինչպես թույլատրել':status==='disabled'?'Միացնել':'Թույլատրել';
+    allow.textContent=status==='denied'?'Как разрешить':status==='disabled'?'Включить':'Разрешить';
     disable.disabled=!['enabled','denied'].includes(status);
-    help.textContent=status==='denied'?'Բրաուզերն արդեն արգելել է ծանուցումները։ Կայքը չի կարող ինքնուրույն փոխել այդ թույլտվությունը։':status==='unsupported'?'Այս բրաուզերում սարքի push ծանուցումները հասանելի չեն։':status==='disabled'?'Կայքի push-ն անջատված է։ Բրաուզերի թույլտվությունը կարող է մնալ միացված։':'';
+    help.textContent=status==='denied'?'Chrome уже запретил уведомления. Сайт не может изменить это разрешение за вас.':status==='unsupported'?'Этот браузер не поддерживает push-уведомления.':status==='disabled'?'Push на сайте выключен. Разрешение в браузере может оставаться включённым.':'';
     browserHelp.hidden=status!=='denied';
   }
   allow.onclick=async()=>{
@@ -373,12 +373,12 @@ async function settings(v){
     try{
       await push.enablePush();
       await refreshPush();
-    }catch(error){console.warn('Push action failed',error);toast('Ծանուցումները չմիացվեցին։ Փորձիր կրկին։','err');await refreshPush()}
+    }catch(error){console.warn('Push action failed',error);toast('Не удалось включить push. Попробуйте снова.','err');await refreshPush()}
   };
   disable.onclick=async()=>{
     if(!push)return;
     disable.disabled=true;
-    try{await push.disablePush();await refreshPush()}catch(error){console.warn('Push disable failed',error);toast('Ծանուցումները չանջատվեցին։ Փորձիր կրկին։','err');await refreshPush()}
+    try{await push.disablePush();await refreshPush()}catch(error){console.warn('Push disable failed',error);toast('Не удалось отключить push. Попробуйте снова.','err');await refreshPush()}
   };
   recheck.onclick=refreshPush;
   await refreshPush();
