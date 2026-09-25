@@ -351,11 +351,11 @@ async function notifications(v){
   });
 }
 async function settings(v){
-  v.innerHTML=`<div class="settings-grid"><section class="card settings-card"><h3>Push-уведомления</h3><p class="muted">Включите уведомления на устройстве или отключите их для этого сайта.</p><div id="push-state" class="badge" role="status">Проверяем…</div><div class="settings-actions"><button id="push-allow" class="btn primary" type="button" disabled>Разрешить</button><button id="push-disable" class="btn" type="button" disabled>Отключить</button><button id="push-recheck" class="btn" type="button">Проверить снова</button></div><p id="push-help" class="small muted"></p><div id="push-browser-help" class="push-browser-help" hidden tabindex="-1"><b>Как разрешить в Chrome</b><ol><li>Нажмите значок ползунков слева от адреса сайта.</li><li>Откройте «Настройки сайта» → «Уведомления».</li><li>Выберите «Разрешить».</li><li>Вернитесь сюда и нажмите «Проверить снова».</li></ol><p>Если пункта нет: ⋮ → «Настройки» → «Конфиденциальность и безопасность» → «Настройки сайтов» → «Уведомления».</p><p>Чтобы запретить уведомления в самом браузере, выберите там «Блокировать».</p></div></section><section class="card settings-card"><h3>Տեսք</h3><p class="muted">Դասարան՝ <span data-class-name>9Ա</span></p><button id="settings-theme" class="btn" type="button">Փոխել թեման</button></section><section class="card settings-card"><h3>Հիշեցումներ</h3><p class="muted">Ընտրիր՝ որ փոփոխությունների մասին տեղեկանալ պորտալի ներսում։</p><button id="settings-alerts" class="btn" type="button">Բացել ծանուցումները</button></section></div>`;
+  v.innerHTML=`<div class="settings-grid"><section class="card settings-card"><h3>Push-уведомления</h3><p class="muted">Если уведомления разрешены в браузере, устройство подключится после входа. Новые сообщения будут приходить и при закрытой вкладке, пока браузер работает.</p><div id="push-state" class="badge" role="status">Проверяем…</div><div class="settings-actions"><button id="push-allow" class="btn primary" type="button" disabled>Разрешить</button><button id="push-disable" class="btn" type="button" disabled>Отключить</button><button id="push-recheck" class="btn" type="button">Проверить снова</button></div><p id="push-help" class="small muted"></p><div id="push-browser-help" class="push-browser-help" hidden tabindex="-1"><b>Как разрешить в Chrome</b><ol><li>Нажмите значок ползунков слева от адреса сайта.</li><li>Откройте «Настройки сайта» → «Уведомления».</li><li>Выберите «Разрешить».</li><li>Вернитесь сюда и нажмите «Проверить снова».</li></ol><p>Если пункта нет: ⋮ → «Настройки» → «Конфиденциальность и безопасность» → «Настройки сайтов» → «Уведомления».</p><p>Чтобы запретить уведомления в самом браузере, выберите там «Блокировать».</p></div></section><section class="card settings-card"><h3>Տեսք</h3><p class="muted">Դասարան՝ <span data-class-name>9Ա</span></p><button id="settings-theme" class="btn" type="button">Փոխել թեման</button></section><section class="card settings-card"><h3>Հիշեցումներ</h3><p class="muted">Ընտրիր՝ որ փոփոխությունների մասին տեղեկանալ պորտալի ներսում։</p><button id="settings-alerts" class="btn" type="button">Բացել ծանուցումները</button></section></div>`;
   v.querySelector('#settings-theme').onclick=theme;
   v.querySelector('#settings-alerts').onclick=()=>window.dispatchEvent(new CustomEvent('portal:open',{detail:{view:'notifications'}}));
   let push;
-  try{push=await import('./push-client.js?v=6')}catch(error){console.warn('Push unavailable',error)}
+  try{push=await import('./push-client.js?v=7')}catch(error){console.warn('Push unavailable',error)}
   if(!v.isConnected||st.view!=='settings')return;
   const state=v.querySelector('#push-state'),allow=v.querySelector('#push-allow'),disable=v.querySelector('#push-disable'),recheck=v.querySelector('#push-recheck'),help=v.querySelector('#push-help'),browserHelp=v.querySelector('#push-browser-help');
   let currentStatus='unsupported';
@@ -387,6 +387,7 @@ async function settings(v){
     try{await push.disablePush();await refreshPush()}catch(error){console.warn('Push disable failed',error);toast('Не удалось отключить push. Попробуйте снова.','err');await refreshPush()}
   };
   recheck.onclick=refreshPush;
+  window.addEventListener('portal:push-synced',refreshPush,{once:true});
   await refreshPush();
 }
 async function profile(v){

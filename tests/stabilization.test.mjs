@@ -71,8 +71,25 @@ test('push asks permission only on explicit enable and can be disabled', async t
   let subscription = null;
   const registration = { pushManager: { async getSubscription() { return subscription; }, async subscribe() { subscription = { endpoint: 'https://push.test/one', toJSON: () => ({ endpoint: 'https://push.test/one', keys: { p256dh: 'a', auth: 'b' } }), async unsubscribe() { subscription = null; return true; } }; return subscription; } } };
   window.navigator.serviceWorker = { async getRegistration() { return registration; }, async register() { return registration; } };
-  let saved = false;
-  const sb = { auth: { async getUser() { return { data: { user: { id: 'student-a' } }, error: null }; } }, from() { return { select() { return this; }, eq() { return this; }, async maybeSingle() { return { data: saved ? { id: 'one' } : null, error: null }; }, async upsert() { saved = true; return { error: null }; }, delete() { return { async eq() { saved = false; return { error: null }; } }; } }; } };
+  let currentUser = 'student-a', owner = null;
+  const sb = {
+    auth: { async getUser() { return { data: { user: { id: currentUser } }, error: null }; } },
+    async rpc(name,args) {
+      assert.equal(name,'claim_push_subscription');
+      assert.equal(args.p_endpoint,'https://push.test/one');
+      owner=currentUser;
+      return { data:true,error:null };
+    },
+    from() {
+      let userId=null;
+      return {
+        select() { return this; },
+        eq(column,value) { if(column==='user_id')userId=value; return this; },
+        async maybeSingle() { return { data: owner===userId ? { id:'one' } : null,error:null }; },
+        delete() { return { eq() { return this; }, async then(resolve) { owner=null; resolve({error:null}); } }; }
+      };
+    }
+  };
   const context = dom.getInternalVMContext();
   const client = new vm.SyntheticModule(['sb'], function () { this.setExport('sb', sb); }, { context });
   const module = new vm.SourceTextModule(await readFile(new URL('push-client.js', root), 'utf8'), { context, identifier: new URL('push-client.js', root).href });
@@ -84,8 +101,15 @@ test('push asks permission only on explicit enable and can be disabled', async t
   assert.equal(await module.namespace.enablePush(), true);
   assert.equal(requested, 1);
   assert.equal(await module.namespace.getPushStatus(), 'enabled');
+  currentUser='student-b';
+  assert.equal(await module.namespace.getPushStatus(), 'disabled');
+  assert.equal(await module.namespace.syncPushIfAllowed(), true,'existing browser permission links the new account');
+  assert.equal(requested,1,'account switch must not open another permission prompt');
+  assert.equal(owner,'student-b');
+  assert.equal(await module.namespace.getPushStatus(), 'enabled');
   assert.equal(await module.namespace.disablePush(), true);
   assert.equal(await module.namespace.getPushStatus(), 'disabled');
+  assert.equal(await module.namespace.syncPushIfAllowed(), false,'explicitly disabled push stays off');
   window.Notification.permission = 'denied';
   assert.equal(await module.namespace.getPushStatus(), 'denied');
   await assert.rejects(module.namespace.enablePush(), /denied/);

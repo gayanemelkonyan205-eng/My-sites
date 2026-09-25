@@ -1,4 +1,5 @@
 import { sb, AUTH_STORAGE_KEY, clearLocalAuthSession } from './supabase-client.js';
+import { disablePush } from './push-client.js?v=7';
 
 let signingOut = false;
 const LOGOUT_ERROR_KEY = 'logout-error';
@@ -37,6 +38,8 @@ export async function logout() {
   if (desktopButton) desktopButton.disabled = true;
 
   try {
+    // Stop this browser receiving the previous account's private notifications.
+    try { await disablePush({ rememberChoice: false, skipServerDelete: true }); } catch (error) { console.warn('Push cleanup failed:', error); }
     const { error } = await sb.auth.signOut({ scope: 'local' });
     if (error) throw error;
   } catch (error) {

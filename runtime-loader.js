@@ -3,7 +3,8 @@ import { showBootError } from './boot-state.js';
 // Secondary modules must never compete with the primary Auth boot.
 // portal.js is the only module allowed to touch Auth while #app is BOOTING/AUTH_CHECK.
 const modules=[
-  './logout-runtime.js?v=3',
+  './logout-runtime.js?v=4',
+  './push-runtime.js?v=1',
   './connection-status.js?v=1',
   './global-search.js?v=2',
   './appearance-runtime.js?v=6',

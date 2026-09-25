@@ -56,8 +56,11 @@ test('a failed remote sign-out still clears the local session and exits', async 
     this.setExport('AUTH_STORAGE_KEY', 'test-auth-token');
     this.setExport('clearLocalAuthSession', () => { cleared++; return true; });
   }, { context });
+  const push = new vm.SyntheticModule(['disablePush'], function () {
+    this.setExport('disablePush', async () => true);
+  }, { context });
   const module = new vm.SourceTextModule(await source('logout-runtime.js'), { context });
-  await module.link(() => client);
+  await module.link(specifier => specifier.startsWith('./push-client.js') ? push : client);
   await module.evaluate();
   await module.namespace.logout();
   assert.equal(cleared, 1);
