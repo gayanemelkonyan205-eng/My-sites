@@ -15,21 +15,7 @@ async function setRole(userId,role){
   if(error||data!==true) throw new Error(error?.message||'Role change denied');
 }
 
-function ensureMobileSuperShortcut(){
-  const mobile=document.querySelector('.mobile');
-  const source=document.querySelector('.sidebar [data-nav="superadmin"]');
-  if(!mobile||!source||mobile.querySelector('[data-owner-mobile-super]'))return;
-  const button=document.createElement('button');
-  button.type='button';
-  button.dataset.ownerMobileSuper='1';
-  button.className='owner-mobile-super';
-  button.innerHTML='<span class="sn-icon">◆</span>Super';
-  button.onclick=()=>document.querySelector('.sidebar [data-nav="superadmin"]')?.click();
-  mobile.append(button);
-}
-
 async function patchSuperAdminTable(){
-  ensureMobileSuperShortcut();
   if(patching)return;
   const table=document.querySelector('#view table');
   const selects=[...document.querySelectorAll('#view select[data-role]')];
@@ -127,7 +113,7 @@ style.textContent=`
 .owner-control-banner{margin:0 0 16px;padding:14px 16px;border:1px solid rgba(255,255,255,.14);border-radius:18px;background:rgba(255,255,255,.07);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .owner-control-banner div{display:flex;gap:8px;flex-direction:column}.owner-control-banner b{font-size:15px}.owner-control-banner span{font-size:13px;opacity:.72;line-height:1.45}
 .owner-badge{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.08em;background:linear-gradient(135deg,#3478f6,#9b4dff);color:#fff}
-@media(max-width:900px){#view table td:last-child{min-width:180px}.owner-control-banner{margin-bottom:12px}.mobile .owner-mobile-super{color:#fff;background:linear-gradient(180deg,rgba(117,92,255,.30),rgba(50,108,255,.18));border:1px solid rgba(152,139,255,.28)}}
+@media(max-width:900px){#view table td:last-child{min-width:180px}.owner-control-banner{margin-bottom:12px}}
 `;
 document.head.append(style);
 

@@ -2,11 +2,11 @@ export const bottomItems = [
   { key: 'dashboard', icon: '⌂', label: 'Գլխավոր' },
   { key: 'study', icon: '▦', label: 'Ուսում' },
   { key: 'chat', icon: '✦', label: 'Չատ' },
-  { key: 'notifications', icon: '●', label: 'Ծանուցում' },
+  { key: 'notifications', icon: '●', label: 'Ծանուցումներ' },
   { key: 'more', icon: '•••', label: 'Ավելին' }
 ];
 const studyViews = new Set(['schedule', 'homework', 'files', 'polls']);
-const moreViews = new Set(['announcements', 'events', 'board', 'classmates', 'profile', 'admin', 'superadmin']);
+const moreViews = new Set(['announcements', 'events', 'board', 'classmates', 'profile', 'settings', 'admin', 'superadmin']);
 export function sectionForView(view) {
   if (view === 'dashboard') return 'dashboard';
   if (studyViews.has(view)) return 'study';

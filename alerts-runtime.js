@@ -12,10 +12,6 @@ function installStyles(){
     [data-nav="notifications"],[data-simple-key="notifications"]{position:relative}
     .alerts-badge{position:absolute;top:3px;right:6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ff453a;color:#fff;font:800 11px/18px -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;text-align:center;box-shadow:0 3px 12px rgba(255,69,58,.35);pointer-events:none;z-index:4}
     .alerts-badge[data-count="0"]{display:none}
-    @media(max-width:900px){
-      .mobile:not([data-simple-nav="1"]){overflow-x:auto!important;overflow-y:hidden!important;grid-template-columns:repeat(6,minmax(64px,1fr))!important;scrollbar-width:none}
-      .mobile:not([data-simple-nav="1"])::-webkit-scrollbar{display:none}
-    }
   `;
   document.head.append(style);
 }
@@ -24,43 +20,23 @@ function setLabel(button){
   if(!button)return;
   if(button.matches('[data-simple-key="notifications"]')){
     const spans=[...button.querySelectorAll('span')].filter(span=>!span.classList.contains('sn-icon')&&!span.classList.contains('alerts-badge'));
-    if(spans[0])spans[0].textContent='Alerts';
+    if(spans[0]&&spans[0].textContent!=='Ծանուցումներ')spans[0].textContent='Ծանուցումներ';
     return;
   }
   const span=button.querySelector('span:not(.sn-icon):not(.alerts-badge)');
-  if(span){span.textContent='Alerts';return}
+  if(span){if(span.textContent!=='Ծանուցումներ')span.textContent='Ծանուցումներ';return}
   const iconNode=button.querySelector('.sn-icon');
   if(iconNode){
-    [...button.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE).forEach(node=>node.remove());
-    button.append(document.createTextNode('Alerts'));
+    const label=[...button.childNodes].find(node=>node.nodeType===Node.TEXT_NODE);
+    if(label&&label.textContent!=='Ծանուցումներ')label.textContent='Ծանուցումներ';
   }
 }
 
 function ensureMobileButton(){
   const mobile=document.querySelector('.mobile');
   if(!mobile)return;
-
   const simple=mobile.querySelector('[data-simple-key="notifications"]');
-  if(simple){
-    setLabel(simple);
-    return;
-  }
-
-  let button=mobile.querySelector('[data-nav="notifications"]');
-  if(!button){
-    button=document.createElement('button');
-    button.type='button';
-    button.dataset.nav='notifications';
-    button.innerHTML='<span class="sn-icon">🔔</span>Alerts';
-    button.addEventListener('click',event=>{
-      event.preventDefault();
-      window.dispatchEvent(new CustomEvent('portal:open',{detail:{view:'notifications'}}));
-    });
-    const profile=mobile.querySelector('[data-nav="profile"]');
-    profile?mobile.insertBefore(button,profile):mobile.append(button);
-  }
-  const desktop=document.querySelector('.sidebar [data-nav="notifications"]');
-  button.classList.toggle('active',!!desktop?.classList.contains('active'));
+  if(simple)setLabel(simple);
 }
 
 function ensureLabels(){
@@ -68,7 +44,7 @@ function ensureLabels(){
   document.querySelectorAll('[data-nav="notifications"],[data-simple-key="notifications"]').forEach(setLabel);
   const active=document.querySelector('.sidebar [data-nav="notifications"]')?.classList.contains('active');
   const title=document.querySelector('#vt');
-  if(active&&title&&title.textContent!=='Alerts')title.textContent='Alerts';
+  if(active&&title&&title.textContent!=='Ծանուցումներ')title.textContent='Ծանուցումներ';
   ensureMobileButton();
   paintBadge(lastCount);
   decorateReadAll();
@@ -87,9 +63,11 @@ function paintBadge(count){
       badge.className='alerts-badge';
       host.append(badge);
     }
-    badge.dataset.count=String(lastCount);
-    badge.textContent=lastCount>99?'99+':String(lastCount);
-    host.setAttribute('aria-label',lastCount?`Alerts: ${lastCount}`:'Alerts');
+    const value=lastCount>99?'99+':String(lastCount);
+    if(badge.dataset.count!==String(lastCount))badge.dataset.count=String(lastCount);
+    if(badge.textContent!==value)badge.textContent=value;
+    const label=lastCount?`Ծանուցումներ՝ ${lastCount}`:'Ծանուցումներ';
+    if(host.getAttribute('aria-label')!==label)host.setAttribute('aria-label',label);
   }
 }
 
@@ -109,19 +87,6 @@ function decorateReadAll(){
   button.addEventListener('click',()=>setTimeout(refreshUnread,250));
 }
 
-async function disableLegacyPush(){
-  if(!('serviceWorker' in navigator))return;
-  try{
-    const registrations=await navigator.serviceWorker.getRegistrations();
-    for(const registration of registrations){
-      try{
-        const subscription=await registration.pushManager?.getSubscription?.();
-        if(subscription)await subscription.unsubscribe();
-      }catch{}
-    }
-  }catch{}
-}
-
 let scheduled=false;
 const observer=new MutationObserver(()=>{
   if(scheduled)return;
@@ -139,7 +104,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshUnr
 window.addEventListener('portal:boot-state',event=>{if(event.detail?.state==='PORTAL'){ensureLabels();refreshUnread()}});
 
 installStyles();
-disableLegacyPush();
 ensureLabels();
 refreshUnread();
 refreshTimer=setInterval(()=>{if(!document.hidden)refreshUnread()},30000);

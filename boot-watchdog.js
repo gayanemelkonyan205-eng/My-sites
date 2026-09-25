@@ -26,7 +26,6 @@
     if (state === 'AUTH_CHECK' && !retried) {
       try {
         sessionStorage.setItem(recoveryKey, '1');
-        localStorage.removeItem('sb-yknzcvooglrsvyidestj-auth-token');
       } catch {}
       const url = new URL(location.href);
       url.searchParams.set('recovery', Date.now().toString());
@@ -42,5 +41,5 @@
       url.searchParams.set('retry', Date.now().toString());
       location.replace(url.toString());
     });
-  }, 8000);
+  }, 12000);
 })();

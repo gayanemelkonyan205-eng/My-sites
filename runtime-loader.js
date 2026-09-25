@@ -5,28 +5,24 @@ import { showBootError } from './boot-state.js';
 const modules=[
   './connection-status.js?v=1',
   './global-search.js?v=2',
-  './telemetry.js?v=2',
   './appearance-runtime.js?v=6',
   './feature-runtime.js?v=4',
   './copy-polish.js?v=2',
   './logout-runtime.js?v=2',
-  './simple-nav.js?v=8',
-  './chat-polish.js?v=2',
-  './control-center.js?v=5',
+  './control-center.js?v=6',
   './control-center-extensions.js?v=4',
   './owner-center.js?v=2',
   './owner-tab-guard.js?v=1',
   './chat-admin-fix.js?v=4',
-  './owner-guard.js?v=3',
-  './notification-runtime.js?v=2',
-  './push-client.js?v=5'
+  './owner-guard.js?v=3'
 ];
+const optional=['./telemetry.js?v=2','./chat-polish.js?v=2'];
 
 let started=false;
 function portalReady(){
   const app=document.querySelector('#app');
   if(!app)return false;
-  return ['LOGIN','PORTAL'].includes(app.dataset.bootState);
+  return app.dataset.bootState==='PORTAL';
 }
 
 async function start(){
@@ -39,6 +35,10 @@ async function start(){
       window.dispatchEvent(new CustomEvent('portal:runtime-error',{detail:{src,name:error?.name||'Error'}}));
     }
   }
+  const results=await Promise.allSettled(optional.map(src=>import(src)));
+  results.forEach((result,index)=>{
+    if(result.status==='rejected')console.error('Optional runtime failed:',optional[index],result.reason);
+  });
 }
 
 const app=document.querySelector('#app');

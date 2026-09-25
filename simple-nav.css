@@ -9,9 +9,11 @@
   .admin-shortcut{display:none!important}
   .main{padding-bottom:112px!important}
 
-  .sn-backdrop{position:fixed;inset:0;z-index:1900;display:flex;align-items:flex-end;justify-content:center;padding:18px 12px calc(96px + env(safe-area-inset-bottom));background:rgba(0,0,0,.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:snFade .18s ease}
-  .sn-sheet{width:min(560px,100%);max-height:min(70vh,620px);overflow:auto;padding:12px;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:color-mix(in srgb,var(--lg-card-strong) 88%,transparent);box-shadow:0 26px 80px rgba(0,0,0,.44),inset 0 1px 0 rgba(255,255,255,.15);backdrop-filter:blur(34px) saturate(175%);-webkit-backdrop-filter:blur(34px) saturate(175%);animation:snSheet .28s cubic-bezier(.2,.9,.2,1.12)}
-  .sn-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 12px}.sn-sheet-head h3{margin:0;font-size:21px;letter-spacing:-.035em}.sn-sheet-close{width:34px;height:34px;border:1px solid var(--lg-line);border-radius:50%;background:rgba(127,127,127,.1);color:var(--lg-text);font-size:18px}
+  .sn-backdrop{position:fixed;inset:0;z-index:1900;display:flex;align-items:flex-end;justify-content:center;padding:18px 12px calc(86px + env(safe-area-inset-bottom));background:rgba(0,0,0,.38);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:snFade .18s ease}
+  html.sn-sheet-open .mobile[data-simple-nav="1"]{z-index:2000!important;box-shadow:0 0 0 1px rgba(255,255,255,.18),0 18px 50px rgba(0,0,0,.55)!important}
+  .sn-sheet{width:min(560px,100%);max-height:min(70vh,620px);overflow:auto;padding:12px;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:color-mix(in srgb,var(--lg-card-strong) 80%,transparent);box-shadow:0 26px 80px rgba(0,0,0,.44),inset 0 1px 0 rgba(255,255,255,.15);backdrop-filter:blur(34px) saturate(175%);-webkit-backdrop-filter:blur(34px) saturate(175%);animation:snSheet .28s cubic-bezier(.2,.9,.2,1.12)}
+  .sn-handle{width:36px;height:4px;margin:2px auto 8px;border-radius:99px;background:rgba(255,255,255,.28)}
+  .sn-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 12px}.sn-sheet-head h3{margin:0;font-size:21px;letter-spacing:-.035em}.sn-sheet-close{width:44px;height:44px;border:1px solid var(--lg-line);border-radius:50%;background:rgba(127,127,127,.1);color:var(--lg-text);font-size:18px}
   .sn-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sn-item{display:flex;align-items:center;gap:11px;min-height:62px;padding:12px;border:1px solid var(--lg-line);border-radius:19px;background:rgba(127,127,127,.055);color:var(--lg-text);text-align:left;font:inherit;font-weight:700}.sn-item:active{transform:scale(.97)}.sn-item-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(145deg,color-mix(in srgb,var(--lg-accent) 16%,transparent),rgba(191,90,242,.08));font-size:19px}.sn-item small{display:block;margin-top:2px;color:var(--lg-muted);font-weight:500;font-size:10px}
   .sn-item.sn-admin{border-color:color-mix(in srgb,var(--lg-accent) 25%,var(--lg-line));background:linear-gradient(135deg,color-mix(in srgb,var(--lg-accent) 10%,transparent),rgba(191,90,242,.06))}
   .sn-sheet-actions{padding-top:10px;margin-top:10px;border-top:1px solid var(--lg-line)}
@@ -21,21 +23,21 @@
   .sn-logout .sn-item-icon{background:rgba(255,69,58,.12);color:#ff6961}
   .sn-logout small{display:block;margin-top:2px;color:color-mix(in srgb,#ff6961 68%,var(--lg-muted));font-weight:500;font-size:10px}
 
-  /* Compact More sheet: same stable layout, less vertical space. */
-  .sn-sheet.sn-more{width:min(520px,100%);max-height:min(58vh,490px);padding:10px;border-radius:26px}
+  /* The restored More sheet stays attached to the five-item dock. */
+  .sn-sheet.sn-more{width:min(560px,100%);height:min(78dvh,680px);max-height:calc(100dvh - 114px - env(safe-area-inset-bottom));padding:12px;border-radius:28px}
   .sn-sheet.sn-more .sn-sheet-head{padding:5px 6px 9px}
   .sn-sheet.sn-more .sn-sheet-head h3{font-size:19px}
-  .sn-sheet.sn-more .sn-sheet-close{width:30px;height:30px;font-size:16px}
+  .sn-sheet.sn-more .sn-sheet-close{width:44px;height:44px;font-size:18px}
   .sn-sheet.sn-more .sn-grid{gap:6px}
-  .sn-sheet.sn-more .sn-item{min-height:52px;padding:8px 9px;gap:8px;border-radius:16px;font-size:13px}
+  .sn-sheet.sn-more .sn-item{min-height:62px;padding:10px;gap:8px;border-radius:16px;font-size:13px}
   .sn-sheet.sn-more .sn-item-icon{width:32px;height:32px;border-radius:11px;font-size:16px;flex:0 0 32px}
   .sn-sheet.sn-more .sn-item small{font-size:9px;margin-top:1px}
-  .sn-sheet.sn-more .sn-logout{min-height:50px;padding:8px 9px;gap:8px;border-radius:16px;font-size:13px}
+  .sn-sheet.sn-more .sn-logout{min-height:62px;padding:10px;gap:8px;border-radius:16px;font-size:13px}
   .sn-sheet.sn-more .sn-logout small{font-size:9px;margin-top:1px}
 }
 @media(max-width:430px){
   .sn-grid{grid-template-columns:1fr 1fr}.sn-item{padding:10px;gap:8px}.sn-item-icon{width:34px;height:34px}
-  .sn-sheet.sn-more{max-height:min(56vh,460px)}
+  .sn-sheet.sn-more{height:min(78dvh,620px);max-height:calc(100dvh - 114px - env(safe-area-inset-bottom))}
   .sn-sheet.sn-more .sn-item{padding:7px 8px;gap:7px}
   .sn-sheet.sn-more .sn-item-icon{width:30px;height:30px;flex-basis:30px}
 }
