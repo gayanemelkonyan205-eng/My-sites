@@ -10,7 +10,7 @@ const modules=[
   './feature-runtime.js?v=4',
   './copy-polish.js?v=2',
   './logout-runtime.js?v=2',
-  './simple-nav.js?v=7',
+  './simple-nav.js?v=8',
   './chat-polish.js?v=2',
   './control-center.js?v=4',
   './control-center-extensions.js?v=4',
@@ -19,7 +19,7 @@ const modules=[
   './chat-admin-fix.js?v=4',
   './owner-guard.js?v=3',
   './notification-runtime.js?v=2',
-  './push-client.js?v=4'
+  './push-client.js?v=5'
 ];
 
 let started=false;
