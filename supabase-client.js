@@ -1,4 +1,10 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4?bundle';
+let createClient;
+try {
+  ({ createClient } = await import('https://esm.sh/@supabase/supabase-js@2.57.4?bundle'));
+} catch (primaryError) {
+  console.warn('Primary Supabase CDN failed, using fallback.', primaryError);
+  ({ createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm'));
+}
 
 export const AUTH_STORAGE_KEY = 'sb-yknzcvooglrsvyidestj-auth-token';
 
@@ -32,7 +38,6 @@ export const sb = createClient(
       try {
         const response = await fetch(url, { ...options, signal: controller.signal });
         if (!response.body) return response;
-        // Fetch resolves at headers; keep the deadline through the API body.
         const body = await response.arrayBuffer();
         return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
       }
