@@ -1,4 +1,4 @@
-import { sb, clearLocalAuthSession } from './supabase-client.js';
+import { sb, AUTH_STORAGE_KEY, clearLocalAuthSession } from './supabase-client.js';
 
 let signingOut = false;
 const LOGOUT_ERROR_KEY = 'logout-error';
@@ -23,7 +23,11 @@ function isStaleSession(error) {
 
 function finishLocalLogout() {
   clearLocalAuthSession();
+  try {
+    if (localStorage.getItem(AUTH_STORAGE_KEY) !== null) return false;
+  } catch { return false; }
   location.reload();
+  return true;
 }
 
 export async function logout() {
@@ -34,13 +38,12 @@ export async function logout() {
 
   try {
     const { error } = await sb.auth.signOut({ scope: 'local' });
-    if (error) {
-      if (isStaleSession(error)) return finishLocalLogout();
-      throw error;
-    }
+    if (error) throw error;
   } catch (error) {
-    if (isStaleSession(error)) return finishLocalLogout();
-    console.error('Logout failed:', error);
+    // A local sign-out still calls Auth and may fail offline or with an expired session.
+    // Clearing the browser session is enough to complete the requested local logout.
+    console.warn(isStaleSession(error) ? 'Stale logout session:' : 'Logout request failed:', error);
+    if (finishLocalLogout()) return;
     showLogoutError();
     window.dispatchEvent(new CustomEvent('portal:logout-error', {
       detail: { name: error?.name || 'Error' }
@@ -62,3 +65,6 @@ document.addEventListener('click', (event) => {
 }, true);
 
 window.addEventListener('portal:logout', () => logout());
+window.addEventListener('storage', event => {
+  if (event.key === AUTH_STORAGE_KEY && event.newValue === null && document.querySelector('.portal')) location.reload();
+});

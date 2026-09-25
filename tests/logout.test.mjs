@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
 
 const root = new URL('../', import.meta.url);
 
@@ -37,4 +38,28 @@ test('mobile more sheet includes a destructive logout action', async () => {
   assert.match(nav, /sn-logout/, 'mobile menu should render a dedicated logout action');
   assert.match(nav, /portal:logout/, 'mobile logout should delegate to shared auth instead of creating another Supabase client');
   assert.match(css, /\.sn-logout/, 'mobile logout should have a visible destructive treatment');
+});
+
+test('a failed remote sign-out still clears the local session and exits', async () => {
+  let cleared = 0;
+  let reloaded = 0;
+  const context = vm.createContext({
+    document: { querySelector: () => null, addEventListener() {} },
+    window: { addEventListener() {}, dispatchEvent() {} },
+    location: { reload() { reloaded++; } },
+    localStorage: { getItem() { return cleared ? null : 'session'; } },
+    CustomEvent: class {},
+    console: { warn() {} }
+  });
+  const client = new vm.SyntheticModule(['sb', 'AUTH_STORAGE_KEY', 'clearLocalAuthSession'], function () {
+    this.setExport('sb', { auth: { async signOut() { return { error: { name: 'AbortError', message: 'Request timed out' } }; } } });
+    this.setExport('AUTH_STORAGE_KEY', 'test-auth-token');
+    this.setExport('clearLocalAuthSession', () => { cleared++; return true; });
+  }, { context });
+  const module = new vm.SourceTextModule(await source('logout-runtime.js'), { context });
+  await module.link(() => client);
+  await module.evaluate();
+  await module.namespace.logout();
+  assert.equal(cleared, 1);
+  assert.equal(reloaded, 1);
 });
