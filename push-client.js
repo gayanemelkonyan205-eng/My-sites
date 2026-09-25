@@ -126,16 +126,10 @@ async function decorateNotifications(){
 }
 
 async function showPermissionCard(){
-  if(document.getElementById(PUSH_CARD_ID))return;
-  const portalReady=document.querySelector('#app')?.dataset.bootState==='PORTAL'||document.querySelector('.portal');
-  if(!portalReady||!('Notification' in window))return;
-  if(Notification.permission==='granted'){
-    try{const subscription=await currentSubscription();if(subscription)await saveSubscription(subscription)}catch{}
-    return;
-  }
-  if(Notification.permission==='denied')return;
-  const laterUntil=Number(localStorage.getItem('portal-push-later')||0);
-  if(laterUntil>Date.now())return;
+  removePermissionCard();
+  if(!('Notification' in window))return;
+  if(Notification.permission==='granted')return enablePush(document.querySelector('#enable-push'));
+  if(Notification.permission==='denied')return showBlockedHelp();
   ensurePushStyles();
   const card=document.createElement('section');
   card.id=PUSH_CARD_ID;
@@ -146,10 +140,7 @@ async function showPermissionCard(){
     <div class="push-actions"><button type="button" data-push-allow>Թույլատրել</button><button type="button" data-push-later>Հետո</button></div>`;
   document.body.append(card);
   card.querySelector('[data-push-allow]').onclick=()=>enablePush(card.querySelector('[data-push-allow]'));
-  card.querySelector('[data-push-later]').onclick=()=>{
-    localStorage.setItem('portal-push-later',String(Date.now()+24*60*60*1000));
-    removePermissionCard();
-  };
+  card.querySelector('[data-push-later]').onclick=removePermissionCard;
 }
 
 let deepLinkOpened=false;
@@ -173,13 +164,14 @@ function openChatDeepLink(){
   history.replaceState(history.state,'',clean.pathname+(clean.searchParams.size?`?${clean.searchParams}`:'')+clean.hash);
 }
 
+// Push permission is now strictly user initiated. No automatic dialog/card on startup.
+removePermissionCard();
 window.addEventListener('portal:boot-state',event=>{
-  if(event.detail?.state==='PORTAL')setTimeout(()=>{openChatDeepLink();showPermissionCard()},500);
+  if(event.detail?.state==='PORTAL')setTimeout(openChatDeepLink,250);
 });
-window.addEventListener('portal:push-enable',()=>enablePush(document.querySelector('#enable-push')));
+window.addEventListener('portal:push-enable',()=>showPermissionCard());
 
 const observer=new MutationObserver(()=>queueMicrotask(()=>{decorateNotifications();openChatDeepLink()}));
 observer.observe(document.documentElement,{subtree:true,childList:true});
 decorateNotifications();
 openChatDeepLink();
-setTimeout(showPermissionCard,1200);
