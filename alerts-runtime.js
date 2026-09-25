@@ -9,13 +9,12 @@ function installStyles(){
   const style=document.createElement('style');
   style.id='alerts-runtime-style';
   style.textContent=`
-    [data-nav="notifications"]{position:relative}
+    [data-nav="notifications"],[data-simple-key="notifications"]{position:relative}
     .alerts-badge{position:absolute;top:3px;right:6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ff453a;color:#fff;font:800 11px/18px -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;text-align:center;box-shadow:0 3px 12px rgba(255,69,58,.35);pointer-events:none;z-index:4}
     .alerts-badge[data-count="0"]{display:none}
     @media(max-width:900px){
-      .mobile{overflow-x:auto!important;overflow-y:hidden!important;grid-template-columns:repeat(6,minmax(64px,1fr))!important;scrollbar-width:none}
-      .mobile::-webkit-scrollbar{display:none}
-      .mobile [data-nav="notifications"]{min-width:64px}
+      .mobile:not([data-simple-nav="1"]){overflow-x:auto!important;overflow-y:hidden!important;grid-template-columns:repeat(6,minmax(64px,1fr))!important;scrollbar-width:none}
+      .mobile:not([data-simple-nav="1"])::-webkit-scrollbar{display:none}
     }
   `;
   document.head.append(style);
@@ -23,6 +22,11 @@ function installStyles(){
 
 function setLabel(button){
   if(!button)return;
+  if(button.matches('[data-simple-key="notifications"]')){
+    const spans=[...button.querySelectorAll('span')].filter(span=>!span.classList.contains('sn-icon')&&!span.classList.contains('alerts-badge'));
+    if(spans[0])spans[0].textContent='Alerts';
+    return;
+  }
   const span=button.querySelector('span:not(.sn-icon):not(.alerts-badge)');
   if(span){span.textContent='Alerts';return}
   const iconNode=button.querySelector('.sn-icon');
@@ -35,6 +39,13 @@ function setLabel(button){
 function ensureMobileButton(){
   const mobile=document.querySelector('.mobile');
   if(!mobile)return;
+
+  const simple=mobile.querySelector('[data-simple-key="notifications"]');
+  if(simple){
+    setLabel(simple);
+    return;
+  }
+
   let button=mobile.querySelector('[data-nav="notifications"]');
   if(!button){
     button=document.createElement('button');
@@ -54,7 +65,7 @@ function ensureMobileButton(){
 
 function ensureLabels(){
   installStyles();
-  document.querySelectorAll('[data-nav="notifications"]').forEach(setLabel);
+  document.querySelectorAll('[data-nav="notifications"],[data-simple-key="notifications"]').forEach(setLabel);
   const active=document.querySelector('.sidebar [data-nav="notifications"]')?.classList.contains('active');
   const title=document.querySelector('#vt');
   if(active&&title&&title.textContent!=='Alerts')title.textContent='Alerts';
@@ -63,7 +74,9 @@ function ensureLabels(){
   decorateReadAll();
 }
 
-function badgeHosts(){return [...document.querySelectorAll('[data-nav="notifications"]')]}
+function badgeHosts(){
+  return [...document.querySelectorAll('[data-nav="notifications"],[data-simple-key="notifications"]')];
+}
 
 function paintBadge(count){
   lastCount=Math.max(0,Number(count)||0);
