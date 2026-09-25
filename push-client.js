@@ -13,11 +13,12 @@ async function saveSubscription(subscription){
   const {data:{user}}=await sb.auth.getUser();
   if(!user)return false;
   const json=subscription.toJSON();
+  if(!json.endpoint||!json.keys?.p256dh||!json.keys?.auth)throw new Error('Invalid push subscription');
   const {error}=await sb.from('push_subscriptions').upsert({
     user_id:user.id,
     endpoint:json.endpoint,
-    p256dh:json.keys?.p256dh,
-    auth:json.keys?.auth,
+    p256dh:json.keys.p256dh,
+    auth:json.keys.auth,
     user_agent:navigator.userAgent,
     updated_at:new Date().toISOString()
   },{onConflict:'endpoint'});
@@ -27,7 +28,8 @@ async function saveSubscription(subscription){
 
 async function registerWorker(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return null;
-  return navigator.serviceWorker.register('./sw.js?v=1',{scope:'./'});
+  await navigator.serviceWorker.register('./sw.js?v=2',{scope:'./'});
+  return navigator.serviceWorker.ready;
 }
 
 async function currentSubscription(){
@@ -38,9 +40,9 @@ async function currentSubscription(){
 
 async function enablePush(button){
   if(!('Notification' in window))return toast('Այս սարքը push ծանուցումներ չի աջակցում։','err');
-  button.disabled=true;
+  if(button)button.disabled=true;
   try{
-    const permission=await Notification.requestPermission();
+    const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
     if(permission!=='granted')return toast('Push ծանուցումների թույլտվությունը չի տրվել։','err');
     const reg=await registerWorker();
     if(!reg)throw new Error('Push not supported');
@@ -53,11 +55,11 @@ async function enablePush(button){
     }
     await saveSubscription(subscription);
     toast('Push ծանուցումները միացված են։','ok');
-    button.textContent='🔔 Push միացված է';
+    if(button)button.textContent='🔔 Push միացված է';
   }catch(error){
-    console.error(error);
+    console.error('push-enable',error);
     toast('Push ծանուցումները չմիացան։','err');
-  }finally{button.disabled=false}
+  }finally{if(button)button.disabled=false}
 }
 
 async function decorateNotifications(){
@@ -70,14 +72,39 @@ async function decorateNotifications(){
   button.textContent='🔔 Միացնել Push';
   readAll.parentElement?.prepend(button);
   try{
-    if(Notification.permission==='granted'){
+    if('Notification' in window&&Notification.permission==='granted'){
       const subscription=await currentSubscription();
       if(subscription){await saveSubscription(subscription);button.textContent='🔔 Push միացված է'}
     }
-  }catch{}
+  }catch(error){console.warn('push-status',error)}
   button.onclick=()=>enablePush(button);
 }
 
-const observer=new MutationObserver(()=>queueMicrotask(decorateNotifications));
+let deepLinkOpened=false;
+function readChatDeepLink(){
+  const params=new URLSearchParams(location.search);
+  if(params.get('push')!=='chat')return null;
+  const conversationId=params.get('conversation')||'';
+  return /^[0-9a-f-]{36}$/i.test(conversationId)?conversationId:null;
+}
+function openChatDeepLink(){
+  if(deepLinkOpened)return;
+  const conversationId=readChatDeepLink();
+  if(!conversationId)return;
+  const ready=document.querySelector('#app')?.dataset.bootState==='PORTAL'||document.querySelector('.portal');
+  if(!ready)return;
+  deepLinkOpened=true;
+  window.dispatchEvent(new CustomEvent('portal:open',{detail:{view:'chat',conversationId}}));
+  const clean=new URL(location.href);
+  clean.searchParams.delete('push');
+  clean.searchParams.delete('conversation');
+  history.replaceState(history.state,'',clean.pathname+(clean.searchParams.size?`?${clean.searchParams}`:'')+clean.hash);
+}
+
+window.addEventListener('portal:boot-state',event=>{if(event.detail?.state==='PORTAL')setTimeout(openChatDeepLink,0)});
+window.addEventListener('portal:push-enable',()=>enablePush(document.querySelector('#enable-push')));
+
+const observer=new MutationObserver(()=>queueMicrotask(()=>{decorateNotifications();openChatDeepLink()}));
 observer.observe(document.documentElement,{subtree:true,childList:true});
 decorateNotifications();
+openChatDeepLink();
