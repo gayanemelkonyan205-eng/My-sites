@@ -396,10 +396,40 @@ async function chatTools(body) {
 
 async function users(body) {
   if(!isSuper()) return body.innerHTML='<div class="cc-empty">Միայն Super Admin</div>';
-  const {data,error}=await sb.from('profiles').select('id,first_name,last_name,username,role,is_active,created_at').order('first_name');if(error)throw error;cc.users=data||[];
-  body.innerHTML=`<div class="cc-list">${cc.users.map(u=>`<article class="cc-card cc-user-row"><div class="cc-user-main"><div class="cc-avatar">${esc((u.first_name?.[0]||'')+(u.last_name?.[0]||''))}</div><div><b>${esc(u.first_name)} ${esc(u.last_name)}</b><span>@${esc(u.username)}</span></div></div><select data-user-role="${u.id}" ${u.id===cc.profile.id?'disabled':''}><option ${u.role==='STUDENT'?'selected':''}>STUDENT</option><option ${u.role==='ADMIN'?'selected':''}>ADMIN</option><option ${u.role==='SUPER_ADMIN'?'selected':''}>SUPER_ADMIN</option></select><button class="${u.is_active?'cc-danger-mini':'cc-secondary'}" data-user-active="${u.id}" data-state="${u.is_active}" ${u.id===cc.profile.id?'disabled':''}>${u.is_active?'Արգելափակել':'Ակտիվացնել'}</button></article>`).join('')}</div>`;
-  $$('[data-user-role]',body).forEach(x=>x.onchange=async()=>{const {data,error}=await sb.rpc('super_admin_set_user_role',{p_user_id:x.dataset.userRole,p_role:x.value});if(error||!data)return toast('Role-ը չփոխվեց','err');track('user_role_changed',{role:x.value});toast('Role-ը փոխվեց','ok')});
-  $$('[data-user-active]',body).forEach(x=>x.onclick=async()=>{const {data,error}=await sb.rpc('super_admin_set_user_active',{p_user_id:x.dataset.userActive,p_active:x.dataset.state!=='true'});if(error||!data)return toast('Կարգավիճակը չփոխվեց','err');track('user_status_changed');renderTab()});
+  const [profiles,owner]=await Promise.all([
+    sb.from('profiles').select('id,first_name,last_name,username,role,is_active,deleted_at,created_at').order('first_name'),
+    sb.rpc('is_current_owner')
+  ]);
+  if(profiles.error)throw profiles.error;
+  if(owner.error)throw owner.error;
+  cc.users=profiles.data||[];
+  const isOwner=owner.data===true;
+  body.innerHTML=`<div class="cc-list">${cc.users.map(u=>{
+    const deleted=!!u.deleted_at;
+    const protectedUser=u.id===cc.profile.id||(u.role==='SUPER_ADMIN'&&!isOwner);
+    const action=deleted
+      ? isOwner?`<button class="cc-secondary" data-user-restore="${u.id}">Восстановить</button>`:'<span class="cc-status">В корзине</span>'
+      : `<button class="${u.is_active?'cc-danger-mini':'cc-secondary'}" data-user-active="${u.id}" data-state="${u.is_active}" ${protectedUser?'disabled':''}>${u.is_active?'Արգելափակել':'Ակտիվացնել'}</button>`;
+    return `<article class="cc-card cc-user-row"><div class="cc-user-main"><div class="cc-avatar">${esc((u.first_name?.[0]||'')+(u.last_name?.[0]||''))}</div><div><b>${esc(u.first_name)} ${esc(u.last_name)}</b><span>@${esc(u.username)}${deleted?' · В корзине':''}</span></div></div><select data-user-role="${u.id}" ${deleted||protectedUser?'disabled':''}><option ${u.role==='STUDENT'?'selected':''}>STUDENT</option><option ${u.role==='ADMIN'?'selected':''}>ADMIN</option><option ${u.role==='SUPER_ADMIN'?'selected':''}>SUPER_ADMIN</option></select>${action}</article>`;
+  }).join('')}</div>`;
+  $$('[data-user-role]',body).forEach(x=>x.onchange=async()=>{
+    const previous=cc.users.find(u=>u.id===x.dataset.userRole)?.role;
+    const {data,error}=await sb.rpc('super_admin_set_user_role',{p_user_id:x.dataset.userRole,p_role:x.value});
+    if(error||!data){x.value=previous;return toast(error?.message||'Role-ը չփոխվեց','err')}
+    track('user_role_changed',{role:x.value});toast('Role-ը փոխվեց','ok');renderTab();
+  });
+  $$('[data-user-active]',body).forEach(x=>x.onclick=async()=>{
+    x.disabled=true;
+    const {data,error}=await sb.rpc('super_admin_set_user_active',{p_user_id:x.dataset.userActive,p_active:x.dataset.state!=='true'});
+    if(error||!data){x.disabled=false;return toast(error?.message||'Կարգավիճակը չփոխվեց','err')}
+    track('user_status_changed');renderTab();
+  });
+  $$('[data-user-restore]',body).forEach(x=>x.onclick=async()=>{
+    x.disabled=true;
+    const {data,error}=await sb.rpc('owner_restore_user',{p_user_id:x.dataset.userRestore});
+    if(error||!data){x.disabled=false;return toast(error?.message||'Не удалось восстановить аккаунт','err')}
+    track('user_restored');toast('Аккаунт восстановлен','ok');renderTab();
+  });
 }
 
 async function reports(body) {

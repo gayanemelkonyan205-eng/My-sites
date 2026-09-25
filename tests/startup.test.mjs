@@ -219,6 +219,36 @@ test('admin profile failure renders a retry instead of an endless loading panel'
   assert.ok(h.w.document.querySelector('[data-cc-retry]'));
 });
 
+test('owner restores a deleted user from Users instead of calling ordinary activation',async t=>{
+  const gayane={id:'gayane',first_name:'Gayane',last_name:'Melkonyan',username:'Arpushik_9',role:'STUDENT',is_active:false,deleted_at:'2026-09-25T18:14:31Z'};
+  const h=await harness({session:{user:{id:'student-a'}},role:'SUPER_ADMIN',rows:{profiles:[gayane]}});t.after(h.close);
+  const originalRpc=h.sb.rpc;
+  const calls=[];
+  h.sb.rpc=async(name,args)=>{
+    if(name==='is_current_owner')return {data:true,error:null};
+    if(name==='owner_restore_user'){calls.push({name,args});gayane.deleted_at=null;gayane.is_active=true;return {data:true,error:null}}
+    if(name==='super_admin_set_user_role'){calls.push({name,args});gayane.role=args.p_role;return {data:true,error:null}}
+    return originalRpc(name,args);
+  };
+  await h.run('portal.js');await h.run('control-center.js');
+  h.w.document.querySelector('[data-nav="superadmin"]').click();await settle();
+  h.w.document.querySelector('[data-cc-tab="users"]').click();await settle();
+  assert.ok(h.w.document.querySelector('[data-user-restore="gayane"]'));
+  assert.equal(h.w.document.querySelector('[data-user-role="gayane"]').disabled,true);
+  assert.equal(h.w.document.querySelector('[data-user-active="gayane"]'),null);
+  h.w.document.querySelector('[data-user-restore="gayane"]').click();await settle();
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].name,'owner_restore_user');
+  assert.equal(calls[0].args.p_user_id,'gayane');
+  const role=h.w.document.querySelector('[data-user-role="gayane"]');
+  assert.equal(role.disabled,false);
+  role.value='SUPER_ADMIN';role.dispatchEvent(new h.w.Event('change',{bubbles:true}));await settle();
+  assert.equal(calls.length,2);
+  assert.equal(calls[1].name,'super_admin_set_user_role');
+  assert.equal(calls[1].args.p_user_id,'gayane');
+  assert.equal(calls[1].args.p_role,'SUPER_ADMIN');
+});
+
 test('request deadline includes a stalled response body',async t=>{
   const h=await harness();t.after(h.close);h.w.Response=Response;
   h.w.fetch=async(_url,options)=>new Response(new ReadableStream({start(controller){options.signal.addEventListener('abort',()=>controller.error(new Error('deadline')))}}));
