@@ -1,4 +1,5 @@
 import { sb } from './supabase-client.js';
+import { toast } from './notifications-ui.js';
 
 
 const $=(s,r=document)=>r.querySelector(s);
@@ -16,10 +17,6 @@ async function viewer(){
 }
 function isAdmin(){return ['ADMIN','SUPER_ADMIN'].includes(profile?.role)}
 function isSuper(){return profile?.role==='SUPER_ADMIN'}
-function toast(text,kind=''){
-  const host=$('#toast'); if(!host)return;
-  const el=document.createElement('div');el.className=`toast ${kind}`;el.textContent=text;host.append(el);setTimeout(()=>el.remove(),4200);
-}
 function busy(btn,on,label='Սպասեք…'){
   if(!btn)return;
   if(on){btn.dataset.old=btn.textContent;btn.disabled=true;btn.textContent=label}
@@ -53,7 +50,7 @@ async function activateExtra(tab,button){
 
 async function renderFiles(body){
   const [filesRes,subjectsRes]=await Promise.all([
-    sb.from('class_files').select('id,subject_id,title,description,storage_path,original_name,mime_type,size_bytes,uploader_id,created_at').order('created_at',{ascending:false}).limit(200),
+    sb.from('class_files').select('id,subject_id,title,description,storage_path,original_name,mime_type,size_bytes,uploader_id,created_at').is('deleted_at',null).order('created_at',{ascending:false}).limit(200),
     sb.from('subjects').select('id,name,icon,is_active').order('display_order').order('name')
   ]);
   if(filesRes.error)throw filesRes.error;if(subjectsRes.error)throw subjectsRes.error;
@@ -111,9 +108,11 @@ async function renderFiles(body){
     if(error)return toast(error.message,'err');track('class_file_updated');toast('Պահպանվեց','ok');await renderFiles(body);
   });
   $$('[data-file-delete]',body).forEach(btn=>btn.onclick=async()=>{
-    if(!confirm('Ջնջե՞լ այս ֆայլը։'))return;const card=btn.closest('[data-file-id]');const id=btn.dataset.fileDelete;const path=card?.dataset.storagePath;
-    const del=await sb.from('class_files').delete().eq('id',id);if(del.error)return toast(del.error.message,'err');
-    if(path)await sb.storage.from('class-files').remove([path]);track('class_file_deleted');toast('Ջնջվեց','ok');await renderFiles(body);
+    if(!confirm('Տեղափոխե՞լ այս ֆայլը աղբաման։'))return;const id=btn.dataset.fileDelete;
+    btn.disabled=true;
+    const del=await sb.rpc('admin_soft_delete_content',{p_entity:'class_files',p_id:id});
+    if(del.error||!del.data){btn.disabled=false;return toast(del.error?.message||'Չհաջողվեց','err')}
+    track('class_file_deleted');toast('Ֆայլը տեղափոխվեց աղբաման','ok');await renderFiles(body);
   });
 }
 

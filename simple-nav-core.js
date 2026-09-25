@@ -6,7 +6,7 @@ export const bottomItems = [
   { key: 'more', icon: '•••', label: 'Ավելին' }
 ];
 const studyViews = new Set(['schedule', 'homework', 'files', 'polls']);
-const moreViews = new Set(['announcements', 'board', 'classmates', 'profile', 'admin', 'superadmin']);
+const moreViews = new Set(['announcements', 'events', 'board', 'classmates', 'profile', 'admin', 'superadmin']);
 export function sectionForView(view) {
   if (view === 'dashboard') return 'dashboard';
   if (studyViews.has(view)) return 'study';

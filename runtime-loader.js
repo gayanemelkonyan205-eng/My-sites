@@ -2,18 +2,17 @@ import { showBootError } from './boot-state.js';
 
 const modules=[
   './connection-status.js?v=1',
+  './global-search.js?v=2',
   './telemetry.js?v=2',
-  './appearance-runtime.js?v=5',
+  './appearance-runtime.js?v=6',
   './feature-runtime.js?v=4',
   './copy-polish.js?v=2',
-  './liquid-glass-v2.js?v=3',
   './logout-runtime.js?v=2',
-  './simple-nav.js?v=5',
+  './simple-nav.js?v=6',
   './chat-polish.js?v=2',
-  './control-center.js?v=3',
-  './control-center-extensions.js?v=3',
-  './chat-admin-fix.js?v=3',
-  './super-delete.js?v=1'
+  './control-center.js?v=4',
+  './control-center-extensions.js?v=4',
+  './chat-admin-fix.js?v=4'
 ];
 
 let started=false;
