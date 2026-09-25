@@ -46,7 +46,7 @@ function renderMessages(chat){
       <div class="msg-body">${esc(m.body||'').replace(/\n/g,'<br>')}</div>
       <div class="msg-reactions">${reactionHtml}</div>
       <div class="msg-meta"><time class="small muted">${time}${m.edited_at?' · խմբագրված':''}</time>
-        <details class="msg-menu"><summary aria-label="Հաղորդագրության գործողություններ">···</summary><div class="msg-actions"><button type="button" data-reply="${esc(m.id)}">Պատասխանել</button><button type="button" data-react="${esc(m.id)}" data-emoji="👍" aria-label="Հավանել">👍</button><button type="button" data-react="${esc(m.id)}" data-emoji="❤️" aria-label="Սրտիկ">❤️</button><button type="button" data-react="${esc(m.id)}" data-emoji="😂" aria-label="Ծիծաղել">😂</button>${mine&&m.type==='TEXT'?`<button type="button" data-edit="${esc(m.id)}">Խմբագրել</button>`:''}${['ADMIN','SUPER_ADMIN'].includes(chat.role)?`<button type="button" data-pin="${esc(m.id)}">${chat.pins.has(m.id)?'Ապամրացնել':'Ամրացնել'}</button>`:''}${canDelete?`<button type="button" data-delete="${esc(m.id)}" data-own="${mine}">Ջնջել</button>`:''}</div></details>
+        <details class="msg-menu"><summary aria-label="Հաղորդագրության գործողություններ">···</summary><div class="msg-actions"><button type="button" data-reply="${esc(m.id)}">Պատասխանել</button><button type="button" data-react="${esc(m.id)}" data-emoji="👍" aria-label="Հավանել">👍</button><button type="button" data-react="${esc(m.id)}" data-emoji="❤️" aria-label="Սրտիկ">❤️</button><button type="button" data-react="${esc(m.id)}" data-emoji="😂" aria-label="Ծիծաղել">😂</button>${mine&&m.type==='TEXT'?`<button type="button" data-edit="${esc(m.id)}">Խմբագրել</button>`:''}${['ADMIN','SUPER_ADMIN'].includes(chat.role)?`<button type="button" data-pin="${esc(m.id)}">${chat.pins.has(m.id)?'Ապամրացնել':'Ամրացնել'}</button>`:''}${!mine?`<button type="button" data-report="${esc(m.id)}">Բողոքել</button>`:''}${canDelete?`<button type="button" data-delete="${esc(m.id)}" data-own="${mine}">Ջնջել</button>`:''}</div></details>
       </div></article>`;
   }).join('')||`<div class="empty">${query?'Արդյունքներ չկան':'Առաջին հաղորդագրությունը կարող է քոնը լինել'}</div>`;
   if(chat.html!==html){chat.box.innerHTML=html;chat.html=html;if(nearBottom||!chat.loaded)chat.box.scrollTop=chat.box.scrollHeight;}
@@ -139,11 +139,18 @@ async function send(chat,event){
 async function action(chat,event){
   const button=event.target.closest('button');
   if(!button||!current(chat)||button.disabled)return;
-  const id=button.dataset.reply||button.dataset.react||button.dataset.edit||button.dataset.pin||button.dataset.delete;
+  const id=button.dataset.reply||button.dataset.react||button.dataset.edit||button.dataset.pin||button.dataset.delete||button.dataset.report;
   if(!id)return;
   const row=chat.rows.find(item=>item.id===id);
   if(!row)return;
   if(button.dataset.reply){chat.replyTo=id;renderReply(chat);chat.form.querySelector('[name="body"]').focus();return;}
+  if(button.dataset.report){
+    if(row.sender_id===chat.userId)return;
+    chat.reportDialog.querySelector('form').reset();
+    chat.reportDialog.querySelector('[name="message_id"]').value=id;
+    if(!chat.reportDialog.open)chat.reportDialog.showModal();
+    return;
+  }
   if(button.dataset.edit){
     if(row.sender_id!==chat.userId||row.type!=='TEXT')return;
     const message=button.closest('.msg'),body=message.querySelector('.msg-body');
@@ -191,8 +198,23 @@ export function mountChat(id,userId,role='STUDENT',targetId=null){
   replyBar.className='chat-reply-bar';replyBar.hidden=true;
   replyBar.innerHTML='<span></span><button type="button" aria-label="Չեղարկել պատասխանը">×</button>';
   form.before(replyBar);
-  const chat={id,userId,role,targetId,box,form,status:header.querySelector('.chat-connection'),search:header.querySelector('.chat-search'),pinHost:header.querySelector('.chat-pinned'),scrollButton:header.querySelector('.chat-scroll-bottom'),replyBar,rows:[],senders:new Map(),reactions:new Map(),pins:new Set(),loading:false,online:false};
+  const reportDialog=document.createElement('dialog');
+  reportDialog.className='message-report-dialog';
+  reportDialog.innerHTML='<form><h3>Հաղորդել հաղորդագրության մասին</h3><input type="hidden" name="message_id"><label>Պատճառ<select name="reason"><option value="SPAM">Սպամ</option><option value="HARASSMENT">Վիրավորանք կամ հետապնդում</option><option value="INAPPROPRIATE">Անպատշաճ բովանդակություն</option><option value="OTHER">Այլ պատճառ</option></select></label><label>Մանրամասներ (ըստ ցանկության)<textarea name="details" maxlength="500" rows="3"></textarea></label><div class="report-actions"><button type="button" class="btn" data-report-cancel>Չեղարկել</button><button class="btn primary">Ուղարկել</button></div></form>';
+  form.after(reportDialog);
+  const chat={id,userId,role,targetId,box,form,status:header.querySelector('.chat-connection'),search:header.querySelector('.chat-search'),pinHost:header.querySelector('.chat-pinned'),scrollButton:header.querySelector('.chat-scroll-bottom'),replyBar,reportDialog,rows:[],senders:new Map(),reactions:new Map(),pins:new Set(),loading:false,online:false};
   active=chat;
+  reportDialog.querySelector('[data-report-cancel]').onclick=()=>reportDialog.close();
+  reportDialog.querySelector('form').onsubmit=async event=>{
+    event.preventDefault();
+    const data=new FormData(event.currentTarget),button=event.submitter;
+    button.disabled=true;
+    const result=await sb.from('message_reports').insert({message_id:data.get('message_id'),reporter_id:chat.userId,reason:data.get('reason'),details:String(data.get('details')||'').trim()||null});
+    button.disabled=false;
+    if(!current(chat))return;
+    if(result.error){status(chat,result.error.code==='23505'?'Այս հաղորդագրության մասին արդեն հայտնել եք':'Հաղորդումը չուղարկվեց։ Փորձիր կրկին։');return;}
+    reportDialog.close();status(chat,'Հաղորդումն ուղարկվեց Super Admin-ին։');
+  };
   form.onsubmit=event=>send(chat,event);
   chat.search.oninput=()=>renderMessages(chat);
   chat.scrollButton.onclick=()=>chat.box.scrollTo({top:chat.box.scrollHeight,behavior:'smooth'});

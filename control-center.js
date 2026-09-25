@@ -1,6 +1,7 @@
 import { sb } from './supabase-client.js';
 import { toast } from './notifications-ui.js';
-import { icon } from './icons.js';
+import { icon } from './icons.js?v=2';
+import { schoolDate, schoolWeekday } from './school-day.js';
 
 
 const cc = { profile: null, mode: null, tab: null, subjects: [], users: [], requests: [] };
@@ -37,6 +38,7 @@ const adminTabs = [
 ];
 const superTabs = [
   ['users','♙','Օգտատերեր'],
+  ['reports','◉','Բողոքներ'],
   ['appearance','◐','Դիզայն'],
   ['trash','▤','Աղբաման'],
   ['database','▤','Բազա'],
@@ -93,7 +95,7 @@ async function renderTab() {
   $$('.cc-tabbar button').forEach(b => b.classList.toggle('active', b.dataset.ccTab === cc.tab));
   body.innerHTML = '<div class="cc-loading">Բեռնվում է…</div>';
   try {
-    const fn = ({ overview, subjects, schedule, content, requests, chat: chatTools, users, appearance, trash, database, audit })[cc.tab] || overview;
+    const fn = ({ overview, subjects, schedule, content, requests, chat: chatTools, users, reports, appearance, trash, database, audit })[cc.tab] || overview;
     await fn(body);
   } catch (error) {
     body.innerHTML = `<div class="cc-empty"><b>Չհաջողվեց բեռնել</b><span>${esc(error.message || error)}</span></div>`;
@@ -185,10 +187,14 @@ async function saveSubject(id, root) {
   track('subject_updated'); toast('Պահպանվեց', 'ok'); renderTab();
 }
 
-async function schedule(body) {
+async function schedule(body,changeDate=schoolDate()) {
   await loadSubjects();
-  const { data, error } = await sb.from('schedule_entries').select('*,subject:subjects(name,icon)').order('weekday').order('lesson_number');
+  const [{ data, error },changeResult] = await Promise.all([
+    sb.from('schedule_entries').select('*,subject:subjects(name,icon)').order('weekday').order('lesson_number'),
+    sb.from('schedule_changes').select('*,subject:subjects(name)').eq('class_date',changeDate).order('lesson_number')
+  ]);
   if (error) throw error;
+  if (changeResult.error) throw changeResult.error;
   const days = ['', 'Երկուշաբթի','Երեքշաբթի','Չորեքշաբթի','Հինգշաբթի','Ուրբաթ','Շաբաթ','Կիրակի'];
   body.innerHTML = `
     <article class="cc-card"><h3>Նոր դաս</h3><form id="cc-schedule-form" class="cc-form cc-form-inline">
@@ -198,7 +204,13 @@ async function schedule(body) {
       <label>Սկիզբ<input name="start" type="time" value="09:00" required></label><label>Ավարտ<input name="end" type="time" value="09:45" required></label>
       <label>Սենյակ<input name="room" maxlength="50"></label><button class="cc-primary">Ավելացնել</button>
     </form></article>
-    <div class="cc-list cc-schedule-list">${(data||[]).map(x=>`<article class="cc-card cc-schedule-row"><span class="cc-day">${days[x.weekday] || x.weekday}</span><b>${x.lesson_number}. ${esc(x.subject?.name||'')}</b><span>${String(x.start_time).slice(0,5)}–${String(x.end_time).slice(0,5)}</span><span>${esc(x.room||'')}</span><button class="btn" data-schedule-edit="${x.id}">Փոխել</button><button class="cc-danger-mini" data-schedule-delete="${x.id}">Ջնջել</button></article>`).join('') || '<div class="cc-empty">Դասացուցակը դատարկ է</div>'}</div>`;
+    <div class="cc-list cc-schedule-list">${(data||[]).map(x=>`<article class="cc-card cc-schedule-row"><span class="cc-day">${days[x.weekday] || x.weekday}</span><b>${x.lesson_number}. ${esc(x.subject?.name||'')}</b><span>${String(x.start_time).slice(0,5)}–${String(x.end_time).slice(0,5)}</span><span>${esc(x.room||'')}</span><button class="btn" data-schedule-edit="${x.id}">Փոխել</button><button class="cc-danger-mini" data-schedule-delete="${x.id}">Ջնջել</button></article>`).join('') || '<div class="cc-empty">Դասացուցակը դատարկ է</div>'}</div>
+    <article class="cc-card schedule-change-editor"><h3>Փոփոխություն կոնկրետ օրվա համար</h3><p class="cc-muted">Սովորական շաբաթական դասացուցակը չի փոխվի։ Ընտրիր ամսաթիվ և դասի համարը։</p>
+      <form id="cc-change-form" class="cc-form"><div class="cc-row"><label>Ամսաթիվ<input name="date" type="date" value="${changeDate}" required></label><label>Դաս №<input name="lesson" type="number" min="1" max="12" required></label><label>Գործողություն<select name="kind"><option value="CHANGED">Փոխել դասը</option><option value="CANCELLED">Չեղարկել</option><option value="ADDED">Ավելացնել դաս</option></select></label></div>
+      <div class="cc-row"><label>Առարկա<select name="subject"><option value="">Նույն առարկան</option>${cc.subjects.filter(s=>s.is_active).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><label>Սկիզբ<input name="start" type="time"></label><label>Ավարտ<input name="end" type="time"></label><label>Սենյակ<input name="room" maxlength="50" placeholder="Նույնը"></label></div>
+      <label>Նշում<input name="note" maxlength="500" placeholder="Օրինակ՝ փոխարինող ուսուցիչ"></label><button class="cc-primary">Պահպանել փոփոխությունը</button></form>
+      <div class="cc-list">${(changeResult.data||[]).map(x=>`<div class="cc-content-row"><span><b>${x.lesson_number}. ${{CHANGED:'Փոփոխություն',CANCELLED:'Չեղարկված',ADDED:'Լրացուցիչ դաս'}[x.kind]}${x.subject?.name?` · ${esc(x.subject.name)}`:''}</b><small>${esc(x.note||'')}</small></span><button type="button" class="cc-danger-mini" data-change-delete="${x.id}">Հեռացնել</button></div>`).join('')||'<div class="cc-empty">Այս օրվա համար փոփոխություն չկա</div>'}</div>
+    </article>`;
   $('#cc-schedule-form', body).onsubmit = async e => {
     e.preventDefault(); const form=e.currentTarget,f = new FormData(form),editId=form.dataset.editId;
     const values={weekday:Number(f.get('weekday')),lesson_number:Number(f.get('lesson')),subject_id:f.get('subject'),start_time:f.get('start'),end_time:f.get('end'),room:f.get('room')||null};
@@ -224,6 +236,37 @@ async function schedule(body) {
     form.dataset.editId=row.id;
     form.querySelector('button[type=submit],button.cc-primary').textContent='Պահպանել';
     form.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+  const changeForm=$('#cc-change-form',body);
+  changeForm.elements.namedItem('date').onchange=()=>schedule(body,changeForm.elements.namedItem('date').value);
+  changeForm.onsubmit=async e=>{
+    e.preventDefault();const f=new FormData(changeForm),kind=String(f.get('kind'));
+    const values={class_date:String(f.get('date')),lesson_number:Number(f.get('lesson')),kind,
+      subject_id:f.get('subject')||null,start_time:f.get('start')||null,end_time:f.get('end')||null,
+      room:f.get('room')||null,note:String(f.get('note')||'').trim()||null};
+    const regular=(data||[]).find(row=>row.weekday===schoolWeekday(values.class_date)&&row.lesson_number===values.lesson_number);
+    const hasRegular=!!regular;
+    if(kind==='ADDED'&&hasRegular)return toast('Այս համարի դաս արդեն կա․ ընտրիր «Փոխել դասը»','err');
+    if(kind!=='ADDED'&&!hasRegular)return toast('Այս համարի դաս չկա․ ընտրիր «Ավելացնել դաս»','err');
+    if(kind==='CANCELLED'){values.subject_id=null;values.start_time=null;values.end_time=null;values.room=null}
+    if(kind==='ADDED'&&(!values.subject_id||!values.start_time||!values.end_time))return toast('Լրացուցիչ դասի համար լրացրու առարկան և ժամը','err');
+    const start=String(values.start_time||regular?.start_time||'').slice(0,5),end=String(values.end_time||regular?.end_time||'').slice(0,5);
+    if(kind!=='CANCELLED'&&start&&end&&end<=start)return toast('Ավարտը պետք է ուշ լինի սկզբից','err');
+    const button=e.submitter;button.disabled=true;
+    const existing=await sb.from('schedule_changes').select('id').eq('class_date',values.class_date).eq('lesson_number',values.lesson_number).maybeSingle();
+    if(existing.error){button.disabled=false;return toast(existing.error.message,'err')}
+    const {error}=existing.data
+      ? await sb.from('schedule_changes').update({kind,subject_id:values.subject_id,start_time:values.start_time,end_time:values.end_time,room:values.room,note:values.note,updated_at:new Date().toISOString()}).eq('id',existing.data.id)
+      : await sb.from('schedule_changes').insert({...values,created_by:cc.profile.id});
+    button.disabled=false;
+    if(error)return toast(error.message,'err');
+    toast('Փոփոխությունը պահպանվեց','ok');schedule(body,values.class_date);
+  };
+  $$('[data-change-delete]',body).forEach(button=>button.onclick=async()=>{
+    if(!confirm('Հեռացնե՞լ այս օրվա փոփոխությունը։'))return;
+    button.disabled=true;const {error}=await sb.from('schedule_changes').delete().eq('id',button.dataset.changeDelete);
+    if(error){button.disabled=false;return toast(error.message,'err')}
+    schedule(body,changeDate);
   });
 }
 
@@ -357,6 +400,39 @@ async function users(body) {
   body.innerHTML=`<div class="cc-list">${cc.users.map(u=>`<article class="cc-card cc-user-row"><div class="cc-user-main"><div class="cc-avatar">${esc((u.first_name?.[0]||'')+(u.last_name?.[0]||''))}</div><div><b>${esc(u.first_name)} ${esc(u.last_name)}</b><span>@${esc(u.username)}</span></div></div><select data-user-role="${u.id}" ${u.id===cc.profile.id?'disabled':''}><option ${u.role==='STUDENT'?'selected':''}>STUDENT</option><option ${u.role==='ADMIN'?'selected':''}>ADMIN</option><option ${u.role==='SUPER_ADMIN'?'selected':''}>SUPER_ADMIN</option></select><button class="${u.is_active?'cc-danger-mini':'cc-secondary'}" data-user-active="${u.id}" data-state="${u.is_active}" ${u.id===cc.profile.id?'disabled':''}>${u.is_active?'Արգելափակել':'Ակտիվացնել'}</button></article>`).join('')}</div>`;
   $$('[data-user-role]',body).forEach(x=>x.onchange=async()=>{const {data,error}=await sb.rpc('super_admin_set_user_role',{p_user_id:x.dataset.userRole,p_role:x.value});if(error||!data)return toast('Role-ը չփոխվեց','err');track('user_role_changed',{role:x.value});toast('Role-ը փոխվեց','ok')});
   $$('[data-user-active]',body).forEach(x=>x.onclick=async()=>{const {data,error}=await sb.rpc('super_admin_set_user_active',{p_user_id:x.dataset.userActive,p_active:x.dataset.state!=='true'});if(error||!data)return toast('Կարգավիճակը չփոխվեց','err');track('user_status_changed');renderTab()});
+}
+
+async function reports(body) {
+  if(!isSuper())return body.innerHTML='<div class="cc-empty">Միայն Super Admin</div>';
+  const result=await sb.from('message_reports').select('id,message_id,reporter_id,reason,details,created_at').eq('status','OPEN').order('created_at',{ascending:true}).limit(100);
+  if(result.error)throw result.error;
+  const rows=result.data||[],ids=[...new Set(rows.map(row=>row.message_id))],reporters=[...new Set(rows.map(row=>row.reporter_id))];
+  const [messages,people]=await Promise.all([
+    ids.length?sb.from('messages').select('id,body,deleted_at').in('id',ids):Promise.resolve({data:[]}),
+    reporters.length?sb.from('profiles').select('id,first_name,last_name').in('id',reporters):Promise.resolve({data:[]})
+  ]);
+  if(messages.error)throw messages.error;if(people.error)throw people.error;
+  const messageMap=new Map((messages.data||[]).map(row=>[row.id,row]));
+  const peopleMap=new Map((people.data||[]).map(row=>[row.id,row]));
+  const reasons={SPAM:'Սպամ',HARASSMENT:'Վիրավորանք կամ հետապնդում',INAPPROPRIATE:'Անպատշաճ բովանդակություն',OTHER:'Այլ պատճառ'};
+  body.innerHTML=`<div class="cc-section-head"><div><h3>Հաղորդագրությունների բողոքներ</h3><p class="cc-muted">Յուրաքանչյուր բողոք դիտարկվում է առանձին։ Ջնջումը վերականգնելի է։</p></div><span class="badge">${rows.length} բաց</span></div><div class="cc-list">${rows.map(row=>{
+    const message=messageMap.get(row.message_id),person=peopleMap.get(row.reporter_id);
+    return `<article class="cc-card report-card" data-report-id="${row.id}"><div class="report-head"><b>${esc(reasons[row.reason]||row.reason)}</b><small>${fmt(row.created_at)}</small></div><p class="cc-muted">${esc(`${person?.first_name||''} ${person?.last_name||''}`.trim()||'Մասնակից')}</p><blockquote>${esc(message?.body?.slice(0,350)||'Հաղորդագրությունը ջնջված է')}</blockquote>${row.details?`<p>${esc(row.details)}</p>`:''}<div class="report-actions"><button class="cc-secondary" data-report-action="DISMISSED">Մերժել բողոքը</button><button class="cc-secondary" data-report-action="RESOLVED">Փակել</button>${message&&!message.deleted_at?'<button class="cc-danger-mini" data-report-action="DELETE">Ջնջել հաղորդագրությունը</button>':''}</div></article>`;
+  }).join('')||'<div class="cc-empty">Բաց բողոքներ չկան</div>'}</div>`;
+  $$('[data-report-action]',body).forEach(button=>button.onclick=async()=>{
+    const card=button.closest('[data-report-id]'),row=rows.find(item=>item.id===card?.dataset.reportId);
+    if(!row)return;
+    const action=button.dataset.reportAction;
+    if(action==='DELETE'&&!confirm('Ջնջե՞լ հաղորդագրությունը։ Այն հնարավոր է վերականգնել աղբամանից։'))return;
+    card.querySelectorAll('button').forEach(b=>b.disabled=true);
+    if(action==='DELETE'){
+      const deleted=await sb.rpc('admin_delete_message',{p_message_id:row.message_id});
+      if(deleted.error||deleted.data!==true){card.querySelectorAll('button').forEach(b=>b.disabled=false);return toast(deleted.error?.message||'Հաղորդագրությունը չջնջվեց','err')}
+    }
+    const saved=await sb.from('message_reports').update({status:action==='DISMISSED'?'DISMISSED':'RESOLVED',reviewed_by:cc.profile.id,reviewed_at:new Date().toISOString()}).eq('id',row.id);
+    if(saved.error){card.querySelectorAll('button').forEach(b=>b.disabled=false);return toast(saved.error.message,'err')}
+    toast('Բողոքը մշակվեց','ok');reports(body);
+  });
 }
 
 async function appearance(body) {

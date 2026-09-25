@@ -1,8 +1,9 @@
-import { mountChat, stopChat } from './chat-reliable.js?v=2';
+import { mountChat, stopChat } from './chat-reliable.js?v=3';
 import { setBootState, showBootError } from './boot-state.js';
 import { sb } from './supabase-client.js';
 import { toast } from './notifications-ui.js';
-import { icon } from './icons.js';
+import { icon } from './icons.js?v=2';
+import { schoolDate, schoolWeekday, effectiveLessons } from './school-day.js';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const app=$('#app');
@@ -150,8 +151,13 @@ function fatal(){cleanup();st.profile=null;showBootError()}
 function items(){const a=[['dashboard','Գլխավոր'],['schedule','Դասացուցակ'],['homework','Տնայիններ'],['announcements','Հայտարարություններ'],['events','Միջոցառումներ'],['board','Տախտակ'],['chat','Չատ'],['polls','Հարցումներ'],['files','Ֆայլեր'],['classmates','Դասընկերներ'],['notifications','Ծանուցումներ'],['profile','Պրոֆիլ']];if(admin())a.push(['admin','Admin']);if(superAdmin())a.push(['superadmin','Super Admin']);return a.map(([key,label])=>[key,icon(key),label])}
 function portal(){
   const p=st.profile;
+  const links=items(),extraKeys=new Set(['events','board','polls','classmates','profile']);
+  const navLink=([key,glyph,label])=>`<button data-nav="${key}" class="${st.view===key?'active':''}" ${st.view===key?'aria-current="page"':''}>${glyph}<span>${label}</span></button>`;
+  const primaryLinks=links.filter(([key])=>!extraKeys.has(key)&&!['admin','superadmin'].includes(key));
+  const extraLinks=links.filter(([key])=>extraKeys.has(key));
+  const adminLinks=links.filter(([key])=>['admin','superadmin'].includes(key));
   app.innerHTML=`<div class="portal"><aside class="sidebar"><div class="brand"><div class="logo">Դ</div><div><b>Դասարան</b><div class="small muted">9Ա · Փակ պորտալ</div></div></div>
-    <nav class="nav" aria-label="Հիմնական բաժիններ">${items().map(([key,glyph,label])=>`<button data-nav="${key}" class="${st.view===key?'active':''}" ${st.view===key?'aria-current="page"':''}>${glyph}<span>${label}</span></button>`).join('')}</nav>
+    <nav class="nav" aria-label="Հիմնական բաժիններ">${primaryLinks.map(navLink).join('')}<details class="nav-extra" ${extraKeys.has(st.view)?'open':''}><summary>${icon('more')}<span>Ավելին</span></summary><div class="nav-extra-list">${extraLinks.map(navLink).join('')}</div></details>${adminLinks.map(navLink).join('')}</nav>
     <div class="side-foot"><div class="user"><div class="avatar" data-avatar-path="${esc(p.avatar_path||'')}">${esc(initials(p))}</div><div><b>${esc(p.first_name)} ${esc(p.last_name)}</b><div class="small muted">${esc(roleName(p.role))}</div></div></div><button id="theme" class="btn">Թեմա</button><button id="logout" class="btn">Դուրս գալ</button></div></aside>
     <main class="main"><div class="top"><div><div class="small muted">Դասարանի փակ պորտալ</div><h1 id="vt">${esc(titles[st.view])}</h1></div><div class="actions"><button id="global-search" class="btn" type="button">${icon('search')} Փնտրել</button><button id="refresh" class="btn" type="button" aria-label="Թարմացնել">↻</button><button id="theme2" class="btn" type="button" aria-label="Փոխել թեման">${icon('appearance')}</button></div></div><section id="view"></section></main>
     <nav class="mobile" aria-label="Արագ բաժիններ">${[['dashboard','Գլխավոր'],['schedule','Դասեր'],['homework','Տնային'],['chat','Չատ'],['profile','Պրոֆիլ']].map(([key,label])=>`<button data-nav="${key}" class="${st.view===key?'active':''}"><span class="sn-icon">${icon(key)}</span>${label}</button>`).join('')}</nav></div>`;
@@ -163,32 +169,50 @@ function portal(){
   paintAvatars();
 }
 window.addEventListener('portal:open',event=>{
-  const {view,conversationId,itemId,startsAt}=event.detail||{};
+  const {view,conversationId,itemId,startsAt,date}=event.detail||{};
   if(!st.profile||!titles[view])return;
   if(conversationId)st.conv=conversationId;
-  st.target=itemId?{view,id:itemId,startsAt}:null;
+  st.target=itemId||date?{view,id:itemId,startsAt,date}:null;
   st.view=view;portal();
 });
-async function renderView(){cleanup();$('#vt').textContent=titles[st.view]||'Դասարան';const v=$('#view');v.innerHTML='<div class="card">Բեռնվում է…</div>';const event=new CustomEvent('portal:render-view',{cancelable:true,detail:{view:st.view}});if(!window.dispatchEvent(event))return;try{const selected=st.target,fn=({dashboard,schedule,homework,announcements,events,board,chat,polls,files,classmates,notifications,profile,admin:adminView,superadmin:superView}[st.view]||dashboard);if(st.view==='events'&&selected?.startsAt){const date=new Date(selected.startsAt);await events(v,date.getFullYear(),date.getMonth(),date.getDate())}else await fn(v);if(selected?.id&&st.view!=='chat'){const id=CSS.escape(selected.id),item=v.querySelector(`[data-item-id="${id}"],[data-id="${id}"]`);if(item){item.scrollIntoView({behavior:'smooth',block:'center'});item.classList.add('search-hit')}}st.target=null}catch(e){v.innerHTML=`<div class="card"><h3>Չհաջողվեց բեռնել</h3><p class="muted">${esc(e.message||e)}</p></div>`}}
+async function renderView(){cleanup();$('#vt').textContent=titles[st.view]||'Դասարան';const v=$('#view');v.innerHTML='<div class="card">Բեռնվում է…</div>';const event=new CustomEvent('portal:render-view',{cancelable:true,detail:{view:st.view}});if(!window.dispatchEvent(event))return;try{const selected=st.target,fn=({dashboard,schedule,homework,announcements,events,board,chat,polls,files,classmates,notifications,profile,admin:adminView,superadmin:superView}[st.view]||dashboard);if(st.view==='events'&&selected?.startsAt){const date=new Date(selected.startsAt);await events(v,date.getFullYear(),date.getMonth(),date.getDate())}else if(st.view==='schedule'&&selected?.date)await schedule(v,selected.date);else await fn(v);if(selected?.id&&st.view!=='chat'){const id=CSS.escape(selected.id),item=v.querySelector(`[data-item-id="${id}"],[data-id="${id}"]`);if(item){item.scrollIntoView({behavior:'smooth',block:'center'});item.classList.add('search-hit')}}st.target=null}catch(e){v.innerHTML=`<div class="card"><h3>Չհաջողվեց բեռնել</h3><p class="muted">${esc(e.message||e)}</p></div>`}}
 
 async function dashboard(v){
-  const now=new Date(),today=now.getDay();
-  const [lessons,homework,announcements,events,notifications]=await Promise.all([
-    sb.from('schedule_entries').select('lesson_number,start_time,end_time,room,subject:subjects(name)').eq('weekday',today).order('lesson_number'),
-    sb.from('homework').select('id,title,due_at,subject:subjects(name,short_name)').is('deleted_at',null).gte('due_at',now.toISOString()).order('due_at').limit(4),
+  const now=new Date(),today=schoolDate(),tomorrow=schoolDate(1);
+  const [lessons,changes,homework,completed,announcements,events,notifications]=await Promise.all([
+    sb.from('schedule_entries').select('weekday,lesson_number,start_time,end_time,room,subject:subjects(name)').in('weekday',[schoolWeekday(today),schoolWeekday(tomorrow)]).order('lesson_number'),
+    sb.from('schedule_changes').select('class_date,lesson_number,kind,subject_id,start_time,end_time,room,note,subject:subjects(name)').in('class_date',[today,tomorrow]),
+    sb.from('homework').select('id,title,due_at,resource_url,file_id,subject:subjects(name,short_name)').is('deleted_at',null).gte('due_at',now.toISOString()).order('due_at').limit(100),
+    sb.from('homework_completion').select('homework_id').eq('student_id',st.profile.id),
     sb.from('announcements').select('id,title,body,is_pinned,is_important').is('deleted_at',null).order('is_pinned',{ascending:false}).order('created_at',{ascending:false}).limit(3),
     sb.from('events').select('id,title,starts_at').is('deleted_at',null).gte('starts_at',now.toISOString()).order('starts_at').limit(2),
     sb.from('notifications').select('id,kind').is('read_at',null).limit(100)
   ]);
-  const rows=lessons.data||[],tasks=homework.data||[],news=announcements.data||[],upcoming=events.data||[];
+  for(const result of [lessons,changes,homework,completed,announcements,events,notifications])if(result.error)throw result.error;
+  const rows=effectiveLessons(lessons.data||[],changes.data||[],today),tomorrowRows=effectiveLessons(lessons.data||[],changes.data||[],tomorrow);
+  const done=new Set((completed.data||[]).map(row=>row.homework_id));
+  const pendingTasks=(homework.data||[]).filter(task=>!done.has(task.id));
+  const tasks=pendingTasks.slice(0,4),tomorrowTasks=pendingTasks.filter(task=>schoolDate(0,new Date(task.due_at))===tomorrow);
+  const news=announcements.data||[],upcoming=events.data||[];
   const unread=(notifications.data||[]).filter(x=>x.kind==='MESSAGE').length;
   v.innerHTML=`<div class="dashboard-intro"><div><span class="small muted">9Ա · Այսօր</span><h2>Բարի օր, ${esc(st.profile.first_name)}</h2><p class="muted">Օրվա կարևոր տեղեկությունները մեկ տեղում են։</p></div><span class="dashboard-date">${new Intl.DateTimeFormat('hy-AM',{weekday:'long',day:'numeric',month:'long'}).format(now)}</span></div>
   <div class="dashboard-actions"><button class="btn" data-dash="schedule">Դասացուցակ</button><button class="btn" data-dash="homework">Տնայիններ${tasks.length?` · ${tasks.length}`:''}</button><button class="btn" data-dash="chat">Չատ${unread?` · ${unread}`:''}</button><button class="btn" data-dash="notifications">Ծանուցումներ</button></div>
-  <div class="dashboard-grid"><section class="card"><div class="dashboard-section-head"><h3>Այսօրվա դասերը</h3><button class="btn" data-dash="schedule">Բոլորը</button></div>${rows.length?`<div class="list">${rows.map(x=>`<div class="item"><div><b>${x.lesson_number}. ${esc(x.subject?.name||'Առարկա')}</b><div class="small muted">${esc(String(x.start_time||'').slice(0,5))}–${esc(String(x.end_time||'').slice(0,5))}${x.room?` · ${esc(x.room)}`:''}</div></div></div>`).join('')}</div>`:'<div class="empty">Այսօր դասեր նշված չեն</div>'}</section>
+  <div class="dashboard-grid"><section class="card"><div class="dashboard-section-head"><h3>Այսօրվա դասերը</h3><button class="btn" data-dash="schedule">Բոլորը</button></div>${rows.length?`<div class="list">${rows.map(x=>`<div class="item"><div><b>${x.lesson_number}. ${x.cancelled?'Դասը չեղարկվել է':esc(x.subject?.name||'Առարկա')}</b><div class="small muted">${x.cancelled?'':`${esc(String(x.start_time||'').slice(0,5))}–${esc(String(x.end_time||'').slice(0,5))}${x.room?` · ${esc(x.room)}`:''}`}${x.changed?` · ${esc(x.note||'Փոփոխություն')}`:''}</div></div>${x.changed?'<span class="badge warn">Փոփոխություն</span>':''}</div>`).join('')}</div>`:'<div class="empty">Այսօր դասեր նշված չեն</div>'}</section>
+  <section class="card tomorrow-card"><div class="dashboard-section-head"><h3>Վաղը</h3><span class="small muted">${esc(new Intl.DateTimeFormat('hy-AM',{day:'numeric',month:'long',timeZone:'Asia/Yerevan'}).format(new Date(`${tomorrow}T12:00:00Z`)))}</span></div><div class="list">${tomorrowRows.map(x=>`<div class="item"><div><b>${x.lesson_number}. ${x.cancelled?'Դասը չեղարկվել է':esc(x.subject?.name||'Առարկա')}</b><div class="small muted">${x.cancelled?'':`${esc(String(x.start_time||'').slice(0,5))}–${esc(String(x.end_time||'').slice(0,5))}`}${x.changed?` · ${esc(x.note||'Փոփոխություն')}`:''}</div></div>${x.changed?'<span class="badge warn">Փոփոխություն</span>':''}</div>`).join('')||'<div class="empty">Վաղը դասեր չկան</div>'}</div><div class="tomorrow-homework"><b>Վաղվա վերջնաժամկետներ</b>${tomorrowTasks.length?`<div class="list">${tomorrowTasks.map(task=>`<div class="item"><div><b>${esc(task.title)}</b><div class="small muted">${esc(task.subject?.name||'Առարկա')} · ${fmt(task.due_at)}</div></div><div class="tomorrow-resources">${/^https:\/\/[^\s]+$/i.test(task.resource_url||'')?`<a class="btn" href="${esc(task.resource_url)}" target="_blank" rel="noopener noreferrer">Հղում</a>`:''}${task.file_id?`<button type="button" class="btn" data-tomorrow-file="${task.file_id}">Ֆայլ</button>`:''}</div></div>`).join('')}</div>`:'<p class="small muted">Տնայինների վերջնաժամկետ չկա</p>'}</div></section>
   <section class="card"><div class="dashboard-section-head"><h3>Մոտակա տնայինները</h3><button class="btn" data-dash="homework">Բոլորը</button></div>${hwList(tasks)}</section>
   <section class="card"><div class="dashboard-section-head"><h3>Կարևոր հայտարարություններ</h3><button class="btn" data-dash="announcements">Բոլորը</button></div>${news.length?`<div class="list">${news.map(x=>`<div class="item"><div><b>${esc(x.title)}</b><div class="small muted">${esc(x.body||'').slice(0,110)}</div></div>${x.is_important?'<span class="badge warn">Կարևոր</span>':''}</div>`).join('')}</div>`:'<div class="empty">Հայտարարություններ չկան</div>'}</section>
   <section class="card"><div class="dashboard-section-head"><h3>Առաջիկա իրադարձությունները</h3><button class="btn" data-dash="events">Բոլորը</button></div>${upcoming.length?`<div class="list">${upcoming.map(x=>`<div class="item"><div><b>${esc(x.title)}</b><div class="small muted">${fmt(x.starts_at)}</div></div></div>`).join('')}</div>`:'<div class="empty">Իրադարձություններ չկան</div>'}</section></div>`;
   v.querySelectorAll('[data-dash]').forEach(button=>button.onclick=()=>document.querySelector(`.sidebar .nav [data-nav="${button.dataset.dash}"]`)?.click());
+  v.querySelectorAll('[data-tomorrow-file]').forEach(button=>button.onclick=async()=>{
+    const preview=window.open('about:blank','_blank');if(preview)preview.opener=null;
+    button.disabled=true;
+    const file=await sb.from('class_files').select('storage_path').eq('id',button.dataset.tomorrowFile).is('deleted_at',null).maybeSingle();
+    if(file.error||!file.data){preview?.close();button.disabled=false;return toast('Ֆայլը հասանելի չէ','err')}
+    const link=await sb.storage.from('class-files').createSignedUrl(file.data.storage_path,120);
+    button.disabled=false;
+    if(link.error){preview?.close();return toast('Ֆայլը չբացվեց','err')}
+    preview?preview.location.replace(link.data.signedUrl):location.assign(link.data.signedUrl);
+  });
 }
 async function events(v,year=new Date().getFullYear(),month=new Date().getMonth(),selectedDay=0){
   const result=await sb.from('events').select('id,title,description,starts_at,ends_at,location').is('deleted_at',null).order('starts_at',{ascending:true});
@@ -203,7 +227,17 @@ async function events(v,year=new Date().getFullYear(),month=new Date().getMonth(
   v.querySelector('#show-month-events')?.addEventListener('click',()=>events(v,year,month));
 }
 const hwList=a=>a.length?`<div class="list">${a.map(x=>`<div class="item"><div><div class="title">${esc(x.title)}</div><div class="small muted">${esc(x.subject?.name||'Առարկա')} · ${fmt(x.due_at)}</div></div><span class="badge">${esc(x.subject?.short_name||'ԴԶ')}</span></div>`).join('')}</div>`:'<div class="empty">Մոտակա տնային չկա</div>';
-async function schedule(v){const r=await sb.from('schedule_entries').select('*,subject:subjects(id,name,short_name)').order('weekday').order('lesson_number');if(r.error)throw r.error;const d=['','Երկուշաբթի','Երեքշաբթի','Չորեքշաբթի','Հինգշաբթի','Ուրբաթ'];v.innerHTML=`<div class="grid g2">${[1,2,3,4,5].map(i=>`<div class="card"><h3>${d[i]}</h3><div class="list">${r.data.filter(x=>x.weekday===i).map(x=>`<div class="item" data-item-id="${x.subject_id}"><div><div class="title">${x.lesson_number}. ${esc(x.subject?.name||'Առարկա')}</div><div class="small muted">${esc(x.start_time||'')}–${esc(x.end_time||'')} ${x.room?'· '+esc(x.room):''}</div></div></div>`).join('')||'<div class="empty">Դասեր նշված չեն</div>'}</div></div>`).join('')}</div>`}
+async function schedule(v,selectedDate=schoolDate()){
+  const [r,c]=await Promise.all([
+    sb.from('schedule_entries').select('*,subject:subjects(id,name,short_name)').order('weekday').order('lesson_number'),
+    sb.from('schedule_changes').select('*,subject:subjects(id,name,short_name)').eq('class_date',selectedDate)
+  ]);
+  if(r.error)throw r.error;if(c.error)throw c.error;
+  const current=effectiveLessons(r.data||[],c.data||[],selectedDate);
+  const d=['','Երկուշաբթի','Երեքշաբթի','Չորեքշաբթի','Հինգշաբթի','Ուրբաթ','Շաբաթ','Կիրակի'];
+  v.innerHTML=`<section class="card schedule-date-card"><div class="dashboard-section-head"><h3>Օրվա դասացուցակ</h3><input type="date" aria-label="Ընտրել ամսաթիվ" id="schedule-date" value="${selectedDate}"></div><p class="small muted">${d[schoolWeekday(selectedDate)]} · Փոփոխությունները ցուցադրվում են միայն ընտրված օրվա համար։</p><div class="list">${current.map(x=>`<div class="item ${x.cancelled?'schedule-cancelled':''}"><div><b>${x.lesson_number}. ${x.cancelled?'Դասը չեղարկվել է':esc(x.subject?.name||'Առարկա')}</b><div class="small muted">${x.cancelled?'':`${esc(String(x.start_time||'').slice(0,5))}–${esc(String(x.end_time||'').slice(0,5))}${x.room?` · ${esc(x.room)}`:''}`}${x.note?` · ${esc(x.note)}`:''}</div></div>${x.changed?'<span class="badge warn">Փոփոխություն</span>':''}</div>`).join('')||'<div class="empty">Այս օրը դասեր նշված չեն</div>'}</div></section><h3 class="schedule-week-title">Շաբաթական դասացուցակ</h3><div class="grid g2">${[1,2,3,4,5].map(i=>`<div class="card"><h3>${d[i]}</h3><div class="list">${(r.data||[]).filter(x=>x.weekday===i).map(x=>`<div class="item" data-item-id="${x.subject_id}"><div><div class="title">${x.lesson_number}. ${esc(x.subject?.name||'Առարկա')}</div><div class="small muted">${esc(x.start_time||'')}–${esc(x.end_time||'')} ${x.room?'· '+esc(x.room):''}</div></div></div>`).join('')||'<div class="empty">Դասեր նշված չեն</div>'}</div></div>`).join('')}</div>`;
+  v.querySelector('#schedule-date').onchange=event=>schedule(v,event.target.value);
+}
 async function homework(v,selected='all'){
   const [tasksResult,completionResult]=await Promise.all([
     sb.from('homework').select('id,title,description,due_at,resource_url,file_id,subject:subjects(name,short_name)').is('deleted_at',null).order('due_at'),
@@ -287,7 +321,29 @@ async function files(v){
 }
 function upload(v){if(!admin())return;modal('Վերբեռնել ֆայլ',`<form id="uf"><div class="field"><label>Վերնագիր</label><input name="title" required></div><div class="field"><label>Առարկա</label><select name="subject"><option value="">Ընդհանուր</option>${st.subjects.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div><div class="field"><label>Ֆայլ</label><input name="file" type="file" required></div><button class="btn primary wide">Վերբեռնել</button></form>`,()=>{$('#uf').onsubmit=async e=>{e.preventDefault();const b=e.submitter,f=new FormData(e.currentTarget),file=f.get('file'),safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'),path=`${st.profile.id}/${crypto.randomUUID()}-${safe}`,mime=file.type||'application/octet-stream';busy(b,1);let r=await sb.storage.from('class-files').upload(path,file,{contentType:mime});if(!r.error){r=await sb.from('class_files').insert({title:f.get('title'),description:'',subject_id:f.get('subject')||null,storage_path:path,original_name:file.name,mime_type:mime,size_bytes:file.size,uploader_id:st.profile.id});if(r.error)await sb.storage.from('class-files').remove([path])}busy(b,0);if(r.error)return toast(r.error.message,'err');closeModal();files(v)}})}
 async function classmates(v){const r=await sb.from('profiles').select('id,first_name,last_name,username,role,bio,avatar_path').eq('is_active',true).order('first_name');if(r.error)throw r.error;v.innerHTML=`<div class="grid g3">${(r.data||[]).map(p=>`<div class="card" data-item-id="${p.id}"><div class="user"><div class="avatar" data-avatar-path="${esc(p.avatar_path||'')}">${esc(initials(p))}</div><div><h3 style="margin:0">${esc(p.first_name)} ${esc(p.last_name)}</h3><div class="small muted">@${esc(p.username)}</div></div></div><p class="muted">${esc(p.bio||'')}</p><span class="badge">${esc(roleName(p.role))}</span></div>`).join('')}</div>`;paintAvatars()}
-async function notifications(v){const r=await sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(100);if(r.error)throw r.error;v.innerHTML=`<div class="section-actions"><button id="readall" class="btn">Բոլորը կարդացված</button></div><div class="list">${(r.data||[]).map(n=>`<div class="item"><div><div class="title">${n.read_at?'':'● '}${esc(n.title)}</div><div class="small muted">${esc(n.body||'')} · ${fmt(n.created_at)}</div></div></div>`).join('')||'<div class="empty">Ծանուցումներ չկան</div>'}</div>`;$('#readall').onclick=async()=>{await sb.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',st.profile.id).is('read_at',null);notifications(v)}}
+async function notifications(v){
+  const [r,pref]=await Promise.all([
+    sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(100),
+    sb.from('notification_preferences').select('schedule_alerts,homework_reminders').eq('user_id',st.profile.id).maybeSingle()
+  ]);
+  if(r.error)throw r.error;if(pref.error)throw pref.error;
+  const settings=pref.data||{schedule_alerts:true,homework_reminders:true};
+  v.innerHTML=`<section class="card notification-settings"><h3>Հիշեցումներ</h3><label><input type="checkbox" name="schedule_alerts" ${settings.schedule_alerts?'checked':''}> Դասացուցակի փոփոխություններ</label><label><input type="checkbox" name="homework_reminders" ${settings.homework_reminders?'checked':''}> Վաղվա տնայինների վերջնաժամկետներ</label><p class="small muted">Հիշեցումները երևում են այս բաժնում։</p></section><div class="section-actions"><button id="readall" class="btn">Բոլորը կարդացված</button></div><div class="list">${(r.data||[]).map(n=>`<div class="item"><div><div class="title">${n.read_at?'':'● '}${esc(n.title)}</div><div class="small muted">${esc(n.body||'')} · ${fmt(n.created_at)}</div></div>${n.href?`<button class="btn" data-note-id="${n.id}" data-note-href="${esc(n.href)}">Բացել</button>`:''}</div>`).join('')||'<div class="empty">Ծանուցումներ չկան</div>'}</div>`;
+  v.querySelectorAll('.notification-settings input').forEach(input=>input.onchange=async()=>{
+    const values={user_id:st.profile.id,schedule_alerts:v.querySelector('[name="schedule_alerts"]').checked,homework_reminders:v.querySelector('[name="homework_reminders"]').checked};
+    const result=await sb.from('notification_preferences').upsert(values,{onConflict:'user_id'});
+    if(result.error){input.checked=!input.checked;toast('Կարգավորումը չպահպանվեց','err');return}
+    toast('Հիշեցումները պահպանվեցին','ok');
+  });
+  $('#readall').onclick=async()=>{const result=await sb.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',st.profile.id).is('read_at',null);if(result.error)return toast(result.error.message,'err');notifications(v)};
+  v.querySelectorAll('[data-note-href]').forEach(button=>button.onclick=async()=>{
+    const href=new URL(button.dataset.noteHref,location.origin);if(href.origin!==location.origin)return;
+    const view=href.pathname.replace(/^\//,'').split('/')[0];
+    if(!['schedule','homework','chat','announcements','events'].includes(view))return;
+    await sb.from('notifications').update({read_at:new Date().toISOString()}).eq('id',button.dataset.noteId).eq('user_id',st.profile.id);
+    window.dispatchEvent(new CustomEvent('portal:open',{detail:{view,date:view==='schedule'?href.searchParams.get('date'):null,conversationId:view==='chat'?href.searchParams.get('conversation'):null}}));
+  });
+}
 async function profile(v){
   const p=st.profile;
   v.innerHTML=`<div class="profile-layout"><section class="card profile-summary"><div class="user"><div class="avatar profile-avatar" data-avatar-path="${esc(p.avatar_path||'')}">${esc(initials(p))}</div><div><h2>${esc(p.first_name)} ${esc(p.last_name)}</h2><div class="muted">@${esc(p.username)}</div><span class="badge">${esc(roleName(p.role))}</span></div></div><label class="profile-upload">Լուսանկար<input id="avatar-file" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG կամ WebP · մինչև 5 ՄԲ</small></label></section>

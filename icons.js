@@ -22,6 +22,7 @@ const paths={
   content:'<path d="M6 3h8l5 5v13H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM14 3v6h5M8 13h8M8 17h8"/>',
   requests:'<path d="M4 12l5 5L20 6"/>',
   users:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5v1"/>',
+  reports:'<path d="M12 3 2 20h20L12 3Z M12 9v5 M12 17h.01"/>',
   appearance:'<path d="M20 15a8 8 0 1 1-11-11 8 8 0 0 0 11 11Z"/>',
   database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 2 4 3 8 3s8-1 8-3V5M4 12c0 2 4 3 8 3s8-1 8-3"/>',
   audit:'<path d="M3 12a9 9 0 1 0 3-7M3 4v5h5M12 7v5l4 2"/>',
