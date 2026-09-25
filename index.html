@@ -30,8 +30,8 @@
 <body>
   <main id="app" data-boot-state="BOOTING"><div class="boot"><div class="logo">Դ</div><div><b>9Ա դասարան</b><small>Բեռնվում է…</small></div></div></main>
   <div id="toast"></div>
-  <!-- Stability mode: only the core portal runs. Extra runtime modules are temporarily disabled
-       so navigation/chat cannot be intercepted by secondary scripts. -->
+  <!-- Stability mode: core portal first; owner controls reuse the same shared Supabase client. -->
   <script type="module" src="./portal.js?v=10"></script>
+  <script type="module" src="./owner-control.js?v=1"></script>
 </body>
 </html>
