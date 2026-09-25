@@ -12,6 +12,7 @@ const modules=[
   './chat-polish.js?v=2',
   './control-center.js?v=4',
   './control-center-extensions.js?v=4',
+  './owner-center.js?v=1',
   './chat-admin-fix.js?v=4'
 ];
 
