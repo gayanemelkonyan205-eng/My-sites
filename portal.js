@@ -219,12 +219,15 @@ async function homework(v,selected='all'){
   v.querySelectorAll('.homework-card').forEach((card,index)=>card.dataset.itemId=visible[index].id);
   v.querySelectorAll('[data-homework-filter]').forEach(button=>button.onclick=()=>homework(v,button.dataset.homeworkFilter));
   v.querySelectorAll('[data-hw-file]').forEach(button=>button.onclick=async()=>{
+    const preview=window.open('about:blank','_blank');
+    if(preview)preview.opener=null;
     button.disabled=true;
     const file=await sb.from('class_files').select('storage_path').eq('id',button.dataset.hwFile).is('deleted_at',null).maybeSingle();
-    if(file.error||!file.data){button.disabled=false;return toast('Ֆայլը հասանելի չէ','err')}
+    if(file.error||!file.data){button.disabled=false;preview?.close();return toast('Ֆայլը հասանելի չէ','err')}
     const link=await sb.storage.from('class-files').createSignedUrl(file.data.storage_path,120);
     button.disabled=false;
-    link.error?toast('Ֆայլը չբացվեց','err'):window.open(link.data.signedUrl,'_blank','noopener');
+    if(link.error){preview?.close();return toast('Ֆայլը չբացվեց','err')}
+    preview?preview.location.replace(link.data.signedUrl):location.assign(link.data.signedUrl);
   });
   v.querySelectorAll('[data-hw]').forEach(button=>button.onclick=async()=>{
     busy(button,true);
@@ -279,7 +282,7 @@ async function files(v){
   v.querySelectorAll('.file-row').forEach((card,index)=>card.dataset.itemId=rows[index].id);
   const filter=()=>{const term=$('#file-search')?.value.trim().toLocaleLowerCase()||'',subject=$('#file-subject')?.value||'';v.querySelectorAll('.file-row').forEach(row=>row.hidden=!!((term&&!row.dataset.fileSearch.includes(term))||(subject&&row.dataset.fileSubject!==subject)))};
   $('#file-search').oninput=filter;$('#file-subject').onchange=filter;
-  v.querySelectorAll('[data-file]').forEach(button=>button.onclick=async()=>{button.disabled=true;const response=await sb.storage.from('class-files').createSignedUrl(button.dataset.file,120);button.disabled=false;response.error?toast('Ֆայլը չբացվեց։','err'):window.open(response.data.signedUrl,'_blank','noopener')});
+  v.querySelectorAll('[data-file]').forEach(button=>button.onclick=async()=>{const preview=window.open('about:blank','_blank');if(preview)preview.opener=null;button.disabled=true;const response=await sb.storage.from('class-files').createSignedUrl(button.dataset.file,120);button.disabled=false;if(response.error){preview?.close();return toast('Ֆայլը չբացվեց։','err')}preview?preview.location.replace(response.data.signedUrl):location.assign(response.data.signedUrl)});
   if(admin())$('#upload').onclick=()=>upload(v);
 }
 function upload(v){if(!admin())return;modal('Վերբեռնել ֆայլ',`<form id="uf"><div class="field"><label>Վերնագիր</label><input name="title" required></div><div class="field"><label>Առարկա</label><select name="subject"><option value="">Ընդհանուր</option>${st.subjects.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div><div class="field"><label>Ֆայլ</label><input name="file" type="file" required></div><button class="btn primary wide">Վերբեռնել</button></form>`,()=>{$('#uf').onsubmit=async e=>{e.preventDefault();const b=e.submitter,f=new FormData(e.currentTarget),file=f.get('file'),safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'),path=`${st.profile.id}/${crypto.randomUUID()}-${safe}`,mime=file.type||'application/octet-stream';busy(b,1);let r=await sb.storage.from('class-files').upload(path,file,{contentType:mime});if(!r.error){r=await sb.from('class_files').insert({title:f.get('title'),description:'',subject_id:f.get('subject')||null,storage_path:path,original_name:file.name,mime_type:mime,size_bytes:file.size,uploader_id:st.profile.id});if(r.error)await sb.storage.from('class-files').remove([path])}busy(b,0);if(r.error)return toast(r.error.message,'err');closeModal();files(v)}})}
@@ -301,7 +304,7 @@ async function profile(v){
     if(upload.error){event.target.disabled=false;toast('Լուսանկարը չվերբեռնվեց։','err');return}
     const update=await sb.from('profiles').update({avatar_path:path}).eq('id',p.id);
     event.target.disabled=false;
-    if(update.error){toast('Լուսանկարը չպահպանվեց պրոֆիլում։','err');return}
+    if(update.error){await sb.storage.from('avatars').remove([path]);toast('Լուսանկարը չպահպանվեց պրոֆիլում։','err');return}
     st.profile.avatar_path=path;
     const sidebar=$('.sidebar .avatar');if(sidebar){sidebar.dataset.avatarPath=path;sidebar.textContent=initials(p)}
     toast('Լուսանկարը պահպանվեց։','ok');profile(v);paintAvatars();

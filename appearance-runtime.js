@@ -1,6 +1,7 @@
 import { sb } from './supabase-client.js';
 
 let applying=false;
+const clamp=(value,min,max,fallback)=>{if(value===null||value===undefined||value==='')return fallback;const number=Number(value);return Number.isFinite(number)?Math.max(min,Math.min(max,number)):fallback};
 async function apply(){
   if(document.querySelector('#app')?.dataset.bootState!=='PORTAL')return;
   if(applying)return;applying=true;
@@ -20,18 +21,19 @@ async function apply(){
   r.style.setProperty('--a',accent);
   r.style.setProperty('--lg-accent',accent);
   r.style.setProperty('--pm-accent',accent);
-  r.style.setProperty('--lg-radius-lg',`${Number(m['appearance.radius']||24)}px`);
-  r.style.setProperty('--lg-blur',`${Number(m['appearance.glass_blur']||28)}px`);
-  r.style.setProperty('--cc-glass-opacity',String(m['appearance.glass_opacity']??.58));
-  r.style.setProperty('--cc-motion-speed',String(m['motion.speed']||1));
-  r.style.setProperty('--cc-spring-strength',String(m['motion.spring_strength']||1));
-  r.style.setProperty('--radius',`${Math.max(10,Math.min(30,Number(m['appearance.radius']||16)))}px`);
-  r.style.setProperty('--pm-radius',`${Math.max(10,Math.min(30,Number(m['appearance.radius']||16)))}px`);
-  r.style.setProperty('--pm-blur',`${Math.max(0,Math.min(40,Number(m['appearance.glass_blur']||24)))}px`);
-  r.style.setProperty('--pm-motion',String(Math.max(.6,Math.min(1.6,Number(m['motion.speed']||1)))));
-  r.style.setProperty('--glass-percent',`${Math.max(60,Math.min(96,Math.round(Number(m['appearance.glass_opacity']??.9)*100)))}%`);
-  r.style.setProperty('--motion-fast',`${Math.round(150/Math.max(.6,Math.min(1.6,Number(m['motion.speed']||1))))}ms`);
-  r.style.setProperty('--motion-view',`${Math.round(240/Math.max(.6,Math.min(1.6,Number(m['motion.speed']||1))))}ms`);
+  const radius=clamp(m['appearance.radius'],10,30,16),blur=clamp(m['appearance.glass_blur'],0,40,24),opacity=clamp(m['appearance.glass_opacity'],.6,.96,.9),speed=clamp(m['motion.speed'],.6,1.6,1);
+  r.style.setProperty('--lg-radius-lg',`${radius}px`);
+  r.style.setProperty('--lg-blur',`${blur}px`);
+  r.style.setProperty('--cc-glass-opacity',String(opacity));
+  r.style.setProperty('--cc-motion-speed',String(speed));
+  r.style.setProperty('--cc-spring-strength',String(clamp(m['motion.spring_strength'],.6,1.6,1)));
+  r.style.setProperty('--radius',`${radius}px`);
+  r.style.setProperty('--pm-radius',`${radius}px`);
+  r.style.setProperty('--pm-blur',`${blur}px`);
+  r.style.setProperty('--pm-motion',String(speed));
+  r.style.setProperty('--glass-percent',`${Math.round(opacity*100)}%`);
+  r.style.setProperty('--motion-fast',`${Math.round(150/speed)}ms`);
+  r.style.setProperty('--motion-view',`${Math.round(240/speed)}ms`);
   r.classList.toggle('motion-off',m['motion.enabled']===false);
   r.classList.toggle('soft-gradient',m['appearance.background_style']==='soft-gradient');
   const title=m['identity.site_name'];

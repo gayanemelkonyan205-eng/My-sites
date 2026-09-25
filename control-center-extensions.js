@@ -98,9 +98,10 @@ async function renderFiles(body){
 
   $$('[data-file-open]',body).forEach(btn=>btn.onclick=async()=>{
     const card=btn.closest('[data-file-id]');const path=card?.dataset.storagePath;if(!path)return;
+    const preview=window.open('about:blank','_blank');if(preview)preview.opener=null;
     const {data,error}=await sb.storage.from('class-files').createSignedUrl(path,90);
-    if(error||!data?.signedUrl)return toast(error?.message||'Հղումը չստացվեց','err');
-    window.open(data.signedUrl,'_blank','noopener,noreferrer');
+    if(error||!data?.signedUrl){preview?.close();return toast(error?.message||'Հղումը չստացվեց','err')}
+    preview?preview.location.replace(data.signedUrl):location.assign(data.signedUrl);
   });
   $$('[data-file-save]',body).forEach(btn=>btn.onclick=async()=>{
     const card=btn.closest('[data-file-id]');const id=btn.dataset.fileSave;
