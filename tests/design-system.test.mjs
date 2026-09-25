@@ -68,5 +68,5 @@ test('critical auth and navigation selectors remain unchanged', async () => {
   for (const selector of ['#login','#glogin','#forgot-password','#refresh','#pr']) {
     assert.match(portal, new RegExp(selector.replace('#','\\#')));
   }
-  assert.match(portal, /data-nav="\$\{k\}"/);
+  assert.match(portal, /data-nav="\$\{(?:k|key)\}"/);
 });
