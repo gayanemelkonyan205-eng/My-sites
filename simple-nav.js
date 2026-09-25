@@ -19,12 +19,12 @@ function openSheet(title, views){
   closeSheet();
   const items=views.filter(available);
   const wrap=document.createElement('div');wrap.className='sn-backdrop';
-  wrap.innerHTML=`<section class="sn-sheet" role="dialog" aria-modal="true"><div class="sn-sheet-head"><h3>${title}</h3><button class="sn-sheet-close" aria-label="Փակել">×</button></div><div class="sn-grid">${items.map(v=>{const [,l,s]=labels[v]||['',v,''];return `<button class="sn-item ${v==='admin'||v==='superadmin'?'sn-admin':''}" data-sheet-view="${v}"><span class="sn-item-icon">${icon(v)}</span><span>${l}<small>${s}</small></span></button>`}).join('')||'<div class="sn-empty">Այս բաժիններում հասանելի գործիք չկա</div>'}${title==='Ավելին'?`<button class="sn-item" data-sheet-action="theme"><span class="sn-item-icon">${icon('appearance')}</span><span>Թեմա<small>Փոխել տեսքը</small></span></button><button class="sn-item" data-sheet-action="logout"><span class="sn-item-icon">${icon('profile')}</span><span>Դուրս գալ<small>Ավարտել մուտքը</small></span></button>`:''}</div></section>`;
+  wrap.innerHTML=`<section class="sn-sheet" role="dialog" aria-modal="true"><div class="sn-sheet-head"><h3>${title}</h3><button class="sn-sheet-close" aria-label="Փակել">×</button></div><div class="sn-grid">${items.map(v=>{const [,l,s]=labels[v]||['',v,''];return `<button class="sn-item ${v==='admin'||v==='superadmin'?'sn-admin':''}" data-sheet-view="${v}"><span class="sn-item-icon">${icon(v)}</span><span>${l}<small>${s}</small></span></button>`}).join('')||'<div class="sn-empty">Այս բաժիններում հասանելի գործիք չկա</div>'}${title==='Ավելին'?`<button class="sn-item" data-sheet-action="theme"><span class="sn-item-icon">${icon('appearance')}</span><span>Թեմա<small>Փոխել տեսքը</small></span></button><button class="sn-logout" data-sheet-action="logout"><span class="sn-item-icon">${icon('profile')}</span><span>Դուրս գալ<small>Ավարտել մուտքը</small></span></button>`:''}</div></section>`;
   document.body.append(wrap);
   wrap.onclick=e=>{if(e.target===wrap||e.target.closest('.sn-sheet-close'))closeSheet();};
   wrap.querySelectorAll('[data-sheet-view]').forEach(b=>b.onclick=()=>go(b.dataset.sheetView));
   wrap.querySelector('[data-sheet-action="theme"]')?.addEventListener('click',()=>{document.querySelector('#theme')?.click();closeSheet()});
-  wrap.querySelector('[data-sheet-action="logout"]')?.addEventListener('click',()=>{document.querySelector('#logout')?.click();closeSheet()});
+  wrap.querySelector('[data-sheet-action="logout"]')?.addEventListener('click',()=>{window.dispatchEvent(new CustomEvent('portal:logout'));closeSheet()});
 }
 
 function rebuild(){
