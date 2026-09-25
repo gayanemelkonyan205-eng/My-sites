@@ -30,9 +30,10 @@
 <body>
   <main id="app" data-boot-state="BOOTING"><div class="boot"><div class="logo">Դ</div><div><b>9Ա դասարան</b><small>Բեռնվում է…</small></div></div></main>
   <div id="toast"></div>
-  <!-- Stability mode: core portal first; owner controls reuse the same shared Supabase client. -->
+  <!-- Stability mode: core portal first; navigation, owner controls and Alerts reuse the shared Supabase client. -->
   <script type="module" src="./portal.js?v=10"></script>
   <script type="module" src="./simple-nav.js?v=4"></script>
   <script type="module" src="./owner-control.js?v=1"></script>
+  <script type="module" src="./alerts-runtime.js?v=1"></script>
 </body>
 </html>
