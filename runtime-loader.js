@@ -54,8 +54,9 @@ window.addEventListener('portal:boot-state',()=>{
   if(portalReady()){observer.disconnect();start();}
 });
 
-setTimeout(()=>{
-  if(started||portalReady())return start();
+window.setTimeout(()=>{
+  if(started)return;
+  if(portalReady())return start();
   if(['BOOTING','AUTH_CHECK'].includes(app?.dataset.bootState))showBootError();
 },9000);
 
