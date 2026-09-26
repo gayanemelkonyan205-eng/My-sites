@@ -1,9 +1,9 @@
-import { bottomItems, sectionForView } from './simple-nav-core.js';
+import { bottomItems, sectionForView } from './simple-nav-core.js?v=2';
 import { icon } from './icons.js';
 
 const labels = {
   schedule:['▦','Դասացուցակ','Օրվա դասերը'], homework:['✓','Տնայիններ','Առաջադրանքներ'], files:['▣','Ֆայլեր','Դասարանի նյութեր'], polls:['◌','Հարցումներ','Քվեարկություններ'],
-  announcements:['◉','Հայտարարություններ','Կարևոր նորություններ'], events:['◈','Օրացույց','Դասարանի իրադարձություններ'], board:['▤','Դասատախտակ','Գրառումներ ու քննարկումներ'], classmates:['♙','Դասընկերներ','Դասարանի մարդիկ'], profile:['◎','Իմ պրոֆիլը','Քո հաշիվը'], settings:['⚙','Կարգավորումներ','Տեսք և ծանուցումներ'], admin:['⚙','Admin Center','Դասարանի կառավարում'], superadmin:['◆','Super Admin Control Center','Լիարժեք կառավարում']
+  announcements:['◉','Հայտարարություններ','Կարևոր նորություններ'], events:['◈','Օրացույց','Դասարանի իրադարձություններ'], board:['▤','Դասատախտակ','Գրառումներ ու քննարկումներ'], classmates:['♙','Դասընկերներ','Դասարանի մարդիկ'], profile:['◎','Իմ պրոֆիլը','Քո հաշիվը'], settings:['⚙','Կարգավորումներ','Տեսք և Alerts'], admin:['⚙','Admin Center','Դասարանի կառավարում'], superadmin:['◆','Super Admin Control Center','Լիարժեք կառավարում']
 };
 let syncing = false;
 let lastView = null;
@@ -29,21 +29,9 @@ function scrubStaleOverlays(){
   if(!document.querySelector('.sn-backdrop'))document.documentElement.classList.remove('sn-sheet-open');
 }
 function go(view){
-  const target=source(view);
   closeSheet();
-  if(!target){
-    window.dispatchEvent(new CustomEvent('portal:navigate-request',{detail:{view}}));
-    return;
-  }
-  if(!available(view))return;
-  // Mobile Settings lives inside a collapsed desktop <details>; navigate
-  // through the portal event instead of clicking an invisible desktop button.
-  if(view==='settings'){
-    window.dispatchEvent(new CustomEvent('portal:open',{detail:{view}}));
-    requestAnimationFrame(sync);
-    return;
-  }
-  target.click();
+  if(!view)return;
+  window.dispatchEvent(new CustomEvent('portal:open',{detail:{view}}));
   requestAnimationFrame(sync);
 }
 function openSheet(title, views){
@@ -76,6 +64,8 @@ function openSheet(title, views){
     }
     const viewButton=e.target.closest('[data-sheet-view]');
     if(viewButton){
+      e.preventDefault();
+      e.stopPropagation();
       go(viewButton.dataset.sheetView);
       return;
     }
@@ -98,7 +88,7 @@ function rebuild(){
   dock.querySelector('[data-simple-key="dashboard"]')?.addEventListener('click',()=>go('dashboard'));
   dock.querySelector('[data-simple-key="study"]')?.addEventListener('click',()=>openSheet('Ուսում',['schedule','homework','files','polls']));
   dock.querySelector('[data-simple-key="chat"]')?.addEventListener('click',()=>available('chat')?go('chat'):openSheet('Չատ',[]));
-  dock.querySelector('[data-simple-key="notifications"]')?.addEventListener('click',()=>available('notifications')?go('notifications'):openSheet('Ծանուցումներ',[]));
+  dock.querySelector('[data-simple-key="notifications"]')?.addEventListener('click',()=>available('notifications')?go('notifications'):openSheet('Alerts',[]));
   dock.querySelector('[data-simple-key="more"]')?.addEventListener('click',()=>document.querySelector('.sn-backdrop .sn-more')?closeSheet():openSheet('Ավելին',['settings','profile','announcements','board','classmates','polls','files','events','admin','superadmin']));
   requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
   syncing=false;
