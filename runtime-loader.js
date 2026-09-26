@@ -3,7 +3,7 @@ import { showBootError } from './boot-state.js';
 // Keep the critical path tiny: portal/auth must finish before any secondary UI.
 const modules=[
   './simple-nav.js?v=10',
-  './alerts-runtime.js?v=5',
+  './alerts-runtime.js?v=6',
   './owner-control.js?v=4',
   './logout-runtime.js?v=4',
   './connection-status.js?v=1',
