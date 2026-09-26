@@ -1,10 +1,11 @@
 import { showBootError } from './boot-state.js';
 
-// Secondary modules must never compete with the primary Auth boot.
-// portal.js is the only module allowed to touch Auth while #app is BOOTING/AUTH_CHECK.
+// Keep the critical path tiny: portal/auth must finish before any secondary UI.
 const modules=[
+  './simple-nav.js?v=10',
+  './alerts-runtime.js?v=5',
+  './owner-control.js?v=4',
   './logout-runtime.js?v=4',
-  './push-runtime.js?v=1',
   './connection-status.js?v=1',
   './global-search.js?v=2',
   './appearance-runtime.js?v=6',
@@ -22,8 +23,7 @@ const optional=['./telemetry.js?v=2','./chat-polish.js?v=2'];
 let started=false;
 function portalReady(){
   const app=document.querySelector('#app');
-  if(!app)return false;
-  return app.dataset.bootState==='PORTAL';
+  return !!app&&app.dataset.bootState==='PORTAL';
 }
 
 async function start(){
@@ -57,6 +57,6 @@ window.addEventListener('portal:boot-state',()=>{
 setTimeout(()=>{
   if(started||portalReady())return start();
   if(['BOOTING','AUTH_CHECK'].includes(app?.dataset.bootState))showBootError();
-},12000);
+},9000);
 
 start();
