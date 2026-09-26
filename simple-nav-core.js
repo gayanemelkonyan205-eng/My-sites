@@ -2,7 +2,7 @@ export const bottomItems = [
   { key: 'dashboard', icon: '⌂', label: 'Գլխավոր' },
   { key: 'study', icon: '▦', label: 'Ուսում' },
   { key: 'chat', icon: '✦', label: 'Չատ' },
-  { key: 'notifications', icon: '●', label: 'Ծանուցումներ' },
+  { key: 'notifications', icon: '●', label: 'Alerts' },
   { key: 'more', icon: '•••', label: 'Ավելին' }
 ];
 const studyViews = new Set(['schedule', 'homework', 'files', 'polls']);
