@@ -5,7 +5,7 @@ let refreshing=false;
 let rendering=false;
 let lastCount=0;
 
-const esc=(value='')=>String(value).replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+const esc=(value='')=>String(value).replace(/[&<>'\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[ch]));
 const fmt=value=>value?new Intl.DateTimeFormat('hy-AM',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'—';
 
 function installStyles(){
@@ -26,11 +26,11 @@ function setLabel(button){
   if(!button)return;
   if(button.matches('[data-simple-key="notifications"]')){
     const spans=[...button.querySelectorAll('span')].filter(span=>!span.classList.contains('sn-icon')&&!span.classList.contains('alerts-badge'));
-    if(spans[0]&&spans[0].textContent!=='Alerts')spans[0].textContent='Alerts';
+    if(spans[0])spans[0].textContent='Alerts';
     return;
   }
   const span=button.querySelector('span:not(.sn-icon):not(.alerts-badge)');
-  if(span){span.textContent='Alerts';return;}
+  if(span)span.textContent='Alerts';
 }
 
 function alertsActive(){
@@ -38,10 +38,9 @@ function alertsActive(){
 }
 
 function hidePushUi(){
-  if(!document.querySelector('.sidebar [data-nav="settings"].active'))return;
   document.querySelectorAll('#view .settings-card').forEach(card=>{
     const heading=card.querySelector('h3')?.textContent?.trim()||'';
-    if(heading==='Push-уведомления')card.hidden=true;
+    if(heading==='Push-уведомления')card.remove();
     if(heading==='Հիշեցումներ'){
       const h=card.querySelector('h3');if(h)h.textContent='Alerts';
       const p=card.querySelector('p');if(p)p.textContent='Внутренние уведомления портала без push.';
@@ -50,11 +49,24 @@ function hidePushUi(){
   });
 }
 
+async function disableLegacyPush(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    const registrations=await navigator.serviceWorker.getRegistrations();
+    for(const registration of registrations){
+      try{
+        const subscription=await registration.pushManager?.getSubscription?.();
+        if(subscription)await subscription.unsubscribe();
+      }catch{}
+    }
+  }catch{}
+}
+
 function ensureLabels(){
   installStyles();
   document.querySelectorAll('[data-nav="notifications"],[data-simple-key="notifications"]').forEach(setLabel);
   const title=document.querySelector('#vt');
-  if(alertsActive()&&title&&title.textContent!=='Alerts')title.textContent='Alerts';
+  if(alertsActive()&&title)title.textContent='Alerts';
   paintBadge(lastCount);
   hidePushUi();
 }
@@ -81,7 +93,7 @@ async function refreshUnread(){
   }finally{refreshing=false;}
 }
 
-async function renderLegacyAlerts(force=false){
+async function renderAlerts(force=false){
   if(rendering||!alertsActive())return;
   const view=document.querySelector('#view');
   if(!view||(!force&&view.dataset.legacyAlerts==='1'))return;
@@ -100,7 +112,7 @@ async function renderLegacyAlerts(force=false){
       readAll.disabled=false;
       if(updateError)return;
       view.dataset.legacyAlerts='';
-      await renderLegacyAlerts(true);
+      await renderAlerts(true);
       await refreshUnread();
     };
   }catch(error){
@@ -117,19 +129,20 @@ const observer=new MutationObserver(()=>{
     ensureLabels();
     if(document.querySelector('.portal')){
       refreshUnread();
-      renderLegacyAlerts();
+      renderAlerts();
     }
   });
 });
-observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','hidden']});
+observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
 
-window.addEventListener('focus',()=>{refreshUnread();renderLegacyAlerts(true)});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshUnread();renderLegacyAlerts(true)}});
-window.addEventListener('portal:boot-state',event=>{if(event.detail?.state==='PORTAL'){ensureLabels();refreshUnread();renderLegacyAlerts(true)}});
+window.addEventListener('focus',()=>{refreshUnread();renderAlerts(true)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshUnread();renderAlerts(true)}});
+window.addEventListener('portal:boot-state',event=>{if(event.detail?.state==='PORTAL'){ensureLabels();refreshUnread();renderAlerts(true)}});
 
 installStyles();
+disableLegacyPush();
 ensureLabels();
 refreshUnread();
-renderLegacyAlerts();
+renderAlerts();
 refreshTimer=setInterval(()=>{if(!document.hidden)refreshUnread()},30000);
 window.addEventListener('beforeunload',()=>{if(refreshTimer)clearInterval(refreshTimer)});
