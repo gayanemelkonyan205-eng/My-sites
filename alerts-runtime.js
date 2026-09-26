@@ -2,7 +2,11 @@ import { sb } from './supabase-client.js';
 
 let refreshTimer=null;
 let refreshing=false;
+let rendering=false;
 let lastCount=0;
+
+const esc=(value='')=>String(value).replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+const fmt=value=>value?new Intl.DateTimeFormat('hy-AM',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'—';
 
 function installStyles(){
   if(document.getElementById('alerts-runtime-style'))return;
@@ -12,6 +16,8 @@ function installStyles(){
     [data-nav="notifications"],[data-simple-key="notifications"]{position:relative}
     .alerts-badge{position:absolute;top:3px;right:6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ff453a;color:#fff;font:800 11px/18px -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;text-align:center;box-shadow:0 3px 12px rgba(255,69,58,.35);pointer-events:none;z-index:4}
     .alerts-badge[data-count="0"]{display:none}
+    .alerts-legacy-list .item{align-items:flex-start}
+    .alerts-legacy-list .title{font-weight:750}
   `;
   document.head.append(style);
 }
@@ -20,54 +26,49 @@ function setLabel(button){
   if(!button)return;
   if(button.matches('[data-simple-key="notifications"]')){
     const spans=[...button.querySelectorAll('span')].filter(span=>!span.classList.contains('sn-icon')&&!span.classList.contains('alerts-badge'));
-    if(spans[0]&&spans[0].textContent!=='Ծանուցումներ')spans[0].textContent='Ծանուցումներ';
+    if(spans[0]&&spans[0].textContent!=='Alerts')spans[0].textContent='Alerts';
     return;
   }
   const span=button.querySelector('span:not(.sn-icon):not(.alerts-badge)');
-  if(span){if(span.textContent!=='Ծանուցումներ')span.textContent='Ծանուցումներ';return}
-  const iconNode=button.querySelector('.sn-icon');
-  if(iconNode){
-    const label=[...button.childNodes].find(node=>node.nodeType===Node.TEXT_NODE);
-    if(label&&label.textContent!=='Ծանուցումներ')label.textContent='Ծանուցումներ';
-  }
+  if(span){span.textContent='Alerts';return;}
 }
 
-function ensureMobileButton(){
-  const mobile=document.querySelector('.mobile');
-  if(!mobile)return;
-  const simple=mobile.querySelector('[data-simple-key="notifications"]');
-  if(simple)setLabel(simple);
+function alertsActive(){
+  return document.querySelector('.sidebar [data-nav="notifications"].active')||document.querySelector('.mobile [data-simple-key="notifications"].active');
+}
+
+function hidePushUi(){
+  if(!document.querySelector('.sidebar [data-nav="settings"].active'))return;
+  document.querySelectorAll('#view .settings-card').forEach(card=>{
+    const heading=card.querySelector('h3')?.textContent?.trim()||'';
+    if(heading==='Push-уведомления')card.hidden=true;
+    if(heading==='Հիշեցումներ'){
+      const h=card.querySelector('h3');if(h)h.textContent='Alerts';
+      const p=card.querySelector('p');if(p)p.textContent='Внутренние уведомления портала без push.';
+      const b=card.querySelector('button');if(b)b.textContent='Открыть Alerts';
+    }
+  });
 }
 
 function ensureLabels(){
   installStyles();
   document.querySelectorAll('[data-nav="notifications"],[data-simple-key="notifications"]').forEach(setLabel);
-  const active=document.querySelector('.sidebar [data-nav="notifications"]')?.classList.contains('active');
   const title=document.querySelector('#vt');
-  if(active&&title&&title.textContent!=='Ծանուցումներ')title.textContent='Ծանուցումներ';
-  ensureMobileButton();
+  if(alertsActive()&&title&&title.textContent!=='Alerts')title.textContent='Alerts';
   paintBadge(lastCount);
-  decorateReadAll();
+  hidePushUi();
 }
 
-function badgeHosts(){
-  return [...document.querySelectorAll('[data-nav="notifications"],[data-simple-key="notifications"]')];
-}
+function badgeHosts(){return [...document.querySelectorAll('[data-nav="notifications"],[data-simple-key="notifications"]')];}
 
 function paintBadge(count){
   lastCount=Math.max(0,Number(count)||0);
   for(const host of badgeHosts()){
     let badge=host.querySelector('.alerts-badge');
-    if(!badge){
-      badge=document.createElement('span');
-      badge.className='alerts-badge';
-      host.append(badge);
-    }
-    const value=lastCount>99?'99+':String(lastCount);
-    if(badge.dataset.count!==String(lastCount))badge.dataset.count=String(lastCount);
-    if(badge.textContent!==value)badge.textContent=value;
-    const label=lastCount?`Ծանուցումներ՝ ${lastCount}`:'Ծանուցումներ';
-    if(host.getAttribute('aria-label')!==label)host.setAttribute('aria-label',label);
+    if(!badge){badge=document.createElement('span');badge.className='alerts-badge';host.append(badge);}
+    badge.dataset.count=String(lastCount);
+    badge.textContent=lastCount>99?'99+':String(lastCount);
+    host.setAttribute('aria-label',lastCount?`Alerts: ${lastCount}`:'Alerts');
   }
 }
 
@@ -77,14 +78,34 @@ async function refreshUnread(){
   try{
     const {count,error}=await sb.from('notifications').select('id',{count:'exact',head:true}).is('read_at',null);
     if(!error)paintBadge(count||0);
-  }finally{refreshing=false}
+  }finally{refreshing=false;}
 }
 
-function decorateReadAll(){
-  const button=document.querySelector('#readall');
-  if(!button||button.dataset.alertsRuntime==='1')return;
-  button.dataset.alertsRuntime='1';
-  button.addEventListener('click',()=>setTimeout(refreshUnread,250));
+async function renderLegacyAlerts(force=false){
+  if(rendering||!alertsActive())return;
+  const view=document.querySelector('#view');
+  if(!view||(!force&&view.dataset.legacyAlerts==='1'))return;
+  rendering=true;
+  try{
+    const {data,error}=await sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(100);
+    if(error)throw error;
+    if(!view.isConnected||!alertsActive())return;
+    view.dataset.legacyAlerts='1';
+    view.innerHTML=`<div class="section-actions"><button id="readall" class="btn" type="button">Прочитать всё</button></div><div class="list alerts-legacy-list">${(data||[]).map(n=>`<div class="item"><div><div class="title">${n.read_at?'':'● '}${esc(n.title)}</div><div class="small muted">${esc(n.body||'')} · ${fmt(n.created_at)}</div></div></div>`).join('')||'<div class="empty">Alerts пока нет</div>'}</div>`;
+    const title=document.querySelector('#vt');if(title)title.textContent='Alerts';
+    const readAll=view.querySelector('#readall');
+    if(readAll)readAll.onclick=async()=>{
+      readAll.disabled=true;
+      const {error:updateError}=await sb.from('notifications').update({read_at:new Date().toISOString()}).is('read_at',null);
+      readAll.disabled=false;
+      if(updateError)return;
+      view.dataset.legacyAlerts='';
+      await renderLegacyAlerts(true);
+      await refreshUnread();
+    };
+  }catch(error){
+    console.warn('[Alerts]',error);
+  }finally{rendering=false;}
 }
 
 let scheduled=false;
@@ -94,17 +115,21 @@ const observer=new MutationObserver(()=>{
   queueMicrotask(()=>{
     scheduled=false;
     ensureLabels();
-    if(document.querySelector('.portal'))refreshUnread();
+    if(document.querySelector('.portal')){
+      refreshUnread();
+      renderLegacyAlerts();
+    }
   });
 });
-observer.observe(document.documentElement,{subtree:true,childList:true});
+observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','hidden']});
 
-window.addEventListener('focus',refreshUnread);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshUnread()});
-window.addEventListener('portal:boot-state',event=>{if(event.detail?.state==='PORTAL'){ensureLabels();refreshUnread()}});
+window.addEventListener('focus',()=>{refreshUnread();renderLegacyAlerts(true)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshUnread();renderLegacyAlerts(true)}});
+window.addEventListener('portal:boot-state',event=>{if(event.detail?.state==='PORTAL'){ensureLabels();refreshUnread();renderLegacyAlerts(true)}});
 
 installStyles();
 ensureLabels();
 refreshUnread();
+renderLegacyAlerts();
 refreshTimer=setInterval(()=>{if(!document.hidden)refreshUnread()},30000);
 window.addEventListener('beforeunload',()=>{if(refreshTimer)clearInterval(refreshTimer)});
